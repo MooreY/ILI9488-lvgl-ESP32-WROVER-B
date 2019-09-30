@@ -109,29 +109,29 @@ void ili9488_init(void) {
 
 void ili9488_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * color_map)
 {
-	uint32_t size = lv_area_get_width(area) * lv_area_get_height(area);
+  uint32_t size = lv_area_get_width(area) * lv_area_get_height(area);
 
-  lv_color32_t* tmp32 = (lv_color32_t*) color_map;
-  lv_color_custom_t* tmp24 = (lv_color_custom_t*) color_map;
+  lv_color32_t* buffer_32bit = (lv_color32_t*) color_map;
+  lv_color_custom_t* buffer_24bit = (lv_color_custom_t*) color_map;
   for(int x=0; x < size; x++) {
-    tmp24[x].red = tmp32[x].ch.blue;
-    tmp24[x].green = tmp32[x].ch.green;
-    tmp24[x].blue = tmp32[x].ch.red;
+    buffer_24bit[x].red = buffer_32bit[x].ch.blue;
+    buffer_24bit[x].green = buffer_32bit[x].ch.green;
+    buffer_24bit[x].blue = buffer_32bit[x].ch.red;
   }
 
-	/*Column addresses*/
+  /*Column addresses*/
   uint8_t xb[] = { (uint8_t) (area->x1 >>8) & 0xFF, (uint8_t) (area->x1) & 0xFF, (uint8_t) (area->x2>>8) & 0xFF, (uint8_t) (area->x2) & 0xFF, };
-	/*Page addresses*/
+  /*Page addresses*/
   uint8_t yb[] = { (uint8_t) (area->y1>>8) & 0xFF, (uint8_t) (area->y1) & 0xFF, (uint8_t) (area->y2>>8) & 0xFF, (uint8_t) (area->y2) & 0xFF, };
 
-	ili9488_send_cmd(ILI9488_CMD_COLUMN_ADDRESS_SET);
-	ili9488_send_data(xb, 4);
-	ili9488_send_cmd(ILI9488_CMD_PAGE_ADDRESS_SET);
-	ili9488_send_data(yb, 4);
+  ili9488_send_cmd(ILI9488_CMD_COLUMN_ADDRESS_SET);
+  ili9488_send_data(xb, 4);
+  ili9488_send_cmd(ILI9488_CMD_PAGE_ADDRESS_SET);
+  ili9488_send_data(yb, 4);
 
-	/*Memory write*/
-	ili9488_send_cmd(ILI9488_CMD_MEMORY_WRITE);
-	ili9488_send_color((void*)tmp24, size*3);
+  /*Memory write*/
+  ili9488_send_cmd(ILI9488_CMD_MEMORY_WRITE);
+  ili9488_send_color((void*)buffer_24bit, size*3);
 
 }
 
