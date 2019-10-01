@@ -2,7 +2,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_freertos_hooks.h"
-#include <lvgl.h>
+#include <lvgl/lvgl.h>
 
 #include "drv/disp_spi.h"
 #include "drv/ili9488.h"

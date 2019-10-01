@@ -14,7 +14,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include "freertos/task.h"
-#include "lvgl.h"
+#include <lvgl/lvgl.h>
 #include "ili9488.h"
 
 /*********************
