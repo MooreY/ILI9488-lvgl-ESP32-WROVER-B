@@ -132,7 +132,6 @@ void ili9488_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * col
   /*Memory write*/
   ili9488_send_cmd(ILI9488_CMD_MEMORY_WRITE);
   ili9488_send_color((void*)buffer_24bit, size*3);
-
 }
 
 /**********************

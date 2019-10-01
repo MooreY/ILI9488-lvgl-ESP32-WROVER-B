@@ -30,7 +30,8 @@ static void IRAM_ATTR lv_tick_task(void)
 
 void testram(int ramSize) {
   // Test SPI-RAM: write
-  uint8_t * mem = (uint8_t *) ps_malloc(ramSize);
+  //uint8_t * mem = (uint8_t *) ps_malloc(ramSize);
+  uint8_t * mem = (uint8_t *) heap_caps_malloc(ramSize, MALLOC_CAP_SPIRAM);
   if(! mem) {
     Serial.printf("ERROR no mem\n");
     return;
@@ -55,20 +56,12 @@ void setup()
   // ledcAttachPin(TFT_LED, 10);
   // analogReadResolution(10);
   // ledcWrite(10,0);
-  psramInit();
+  //psramInit();
   if(psramFound()) {
     Serial.printf("\nPS_RAM found.\n\n");
     Serial.printf("\n%d Bytes free.\n\n", ESP.getFreeHeap());
   }
   // test SPI RAM
-  // Serial.print("Test 128B:"); testram(128);
-  // Serial.print("Test 256B:"); testram(256);
-  // Serial.print("Test  1KB:"); testram(1024);
-  // Serial.print("Test 16KB:"); testram(16*1024);
-  // Serial.print("Test 64KB:"); testram(64*1024);
-  // Serial.print("Test  1MB:"); testram(1*1024*1024);
-  // Serial.print("Test  2MB:"); testram(2*1024*1024);
-  // Serial.print("Test  3MB:"); testram(3*1024*1024);
   //Serial.print("Test  4MB:"); testram((4*1024*1024)-64);
 
 

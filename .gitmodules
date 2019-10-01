@@ -1,0 +1,6 @@
+[submodule "src/lvgl"]
+	path = src/lvgl
+	url = https://github.com/littlevgl/lvgl.git
+[submodule "src/Button2"]
+	path = src/Button2
+	url = https://github.com/mvturnho/Button2.git

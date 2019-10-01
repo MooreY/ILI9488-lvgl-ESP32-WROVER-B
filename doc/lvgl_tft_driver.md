@@ -12,7 +12,7 @@ void ili9488_init(void) {
 
         {ILI9488_CMD_MEMORY_ACCESS_CONTROL,     {TFT_MAD_MV | TFT_MAD_MY | TFT_MAD_MX}, 1},			  // Memory Access Control
 
-        {ILI9488_CMD_COLMOD_PIXEL_FORMAT_SET,   {0x06}, 1},			  // Pixel Interface Format 18 bit colour for SPI
+        {ILI9488_CMD_COLMOD_PIXEL_FORMAT_SET,   {0x06}, 1},       // Pixel Interface Format 18 bit colour for SPI
 
         {ILI9488_CMD_INTERFACE_MODE_CONTROL,    {0x00}, 1},       // Interface Mode Control
         {ILI9488_CMD_FRAME_RATE_CONTROL_NORMAL, {0xA0}, 1},       // Frame Rate Control
