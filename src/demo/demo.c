@@ -11,6 +11,8 @@
 /*********************
  *      DEFINES
  *********************/
+#define TERMINAL_NO_INPUT    0   /*Do not create Text area and Keyboard*/
+#define TERMINAL_LOG_LENGTH  512        /*Characters*/
 
 /**********************
  *      TYPEDEFS
@@ -21,12 +23,14 @@
  **********************/
 static void write_create(lv_obj_t *parent);
 static void text_area_event_handler(lv_obj_t *text_area, lv_event_t event);
+static void clr_event_cb(lv_obj_t * btn, lv_event_t event);
 static void keyboard_event_cb(lv_obj_t *keyboard, lv_event_t event);
 #if LV_USE_ANIMATION
 static void kb_hide_anim_end(lv_anim_t *a);
 #endif
 static void list_create(lv_obj_t *parent);
 static void chart_create(lv_obj_t *parent);
+static void terminal_create(lv_obj_t *parent);
 static void slider_event_handler(lv_obj_t *slider, lv_event_t event);
 static void list_btn_event_handler(lv_obj_t *slider, lv_event_t event);
 #if LV_DEMO_SLIDE_SHOW
@@ -39,6 +43,11 @@ static void tab_switcher(lv_task_t *task);
 static lv_obj_t *chart;
 static lv_obj_t *ta;
 static lv_obj_t *kb;
+static lv_obj_t *list ;
+static lv_obj_t * label;
+static lv_obj_t * clr_btn;
+
+static char txt_log[TERMINAL_LOG_LENGTH + 1];
 
 static lv_style_t style_kb;
 static lv_style_t style_kb_rel;
@@ -58,10 +67,19 @@ LV_IMG_DECLARE(img_bubble_pattern)
  *   GLOBAL FUNCTIONS
  **********************/
 
+void add_text_to_demo(const char * text) {
+    lv_ta_add_text(ta,text);
+}
+
+void add_list_button(const char * label) {
+    lv_obj_t *list_btn = lv_list_add_btn(list, LV_SYMBOL_WIFI, label);
+    lv_obj_set_event_cb(list_btn, list_btn_event_handler);
+}
+
 /**
  * Create a demo application
  */
-lv_group_t *demo_create(void)
+lv_group_t *demo_create()
 {
     lv_coord_t hres = lv_disp_get_hor_res(NULL);
     lv_coord_t vres = lv_disp_get_ver_res(NULL);
@@ -108,10 +126,12 @@ lv_group_t *demo_create(void)
     lv_obj_t *tab1 = lv_tabview_add_tab(tv, "Write");
     lv_obj_t *tab2 = lv_tabview_add_tab(tv, "List");
     lv_obj_t *tab3 = lv_tabview_add_tab(tv, "Chart");
+    lv_obj_t *tab4 = lv_tabview_add_tab(tv, "Terminal");
 
     lv_group_add_obj(g, tab1);
     lv_group_add_obj(g, tab2);
     lv_group_add_obj(g, tab3);
+    lv_group_add_obj(g, tab4);
 
 #if LV_DEMO_WALLPAPER == 0
     /*Blue bg instead of wallpaper*/
@@ -127,8 +147,9 @@ lv_group_t *demo_create(void)
     write_create(tab1);
     list_create(tab2);
     chart_create(tab3);
+    terminal_create(tab4);
 
-#if LV_DEMO_SLIDE_SHOW
+    #if LV_DEMO_SLIDE_SHOW
     lv_task_create(tab_switcher, 3000, LV_TASK_PRIO_MID, tv);
 #endif
     return g;
@@ -287,7 +308,7 @@ static void list_create(lv_obj_t *parent)
     style_btn_pr.body.grad_color = lv_color_make(0x37, 0x62, 0x90);
     style_btn_pr.text.color = lv_color_make(0xbb, 0xd5, 0xf1);
 
-    lv_obj_t *list = lv_list_create(parent, NULL);
+    list = lv_list_create(parent, NULL);
     lv_obj_set_height(list, 2 * lv_obj_get_height(parent) / 3);
     lv_list_set_style(list, LV_LIST_STYLE_BG, &lv_style_transp_tight);
     lv_list_set_style(list, LV_LIST_STYLE_SCRL, &lv_style_transp_tight);
@@ -415,6 +436,117 @@ static void chart_create(lv_obj_t *parent)
     lv_slider_set_range(slider, 10, 1000);
     lv_slider_set_value(slider, 700, false);
     slider_event_handler(slider, LV_EVENT_VALUE_CHANGED); /*Simulate a user value set the refresh the chart*/
+}
+
+
+/**
+ * Open a terminal
+ * @return pointer to the terminal window
+ */
+static void terminal_create(lv_obj_t *parent)
+{
+    lv_page_set_style(parent, LV_PAGE_STYLE_BG, &lv_style_transp_fit);
+    lv_page_set_style(parent, LV_PAGE_STYLE_SCRL, &lv_style_transp_fit);
+
+    lv_page_set_sb_mode(parent, LV_SB_MODE_OFF);
+
+    static lv_style_t style_terminal;
+    lv_style_copy(&style_terminal, &lv_style_pretty);
+    // style_terminal.body.main_color = lv_color_make(0x30, 0x30, 0x30);
+    // style_terminal.body.grad_color = lv_color_make(0x30, 0x30, 0x30);
+    // style_terminal.body.border.color = LV_COLOR_WHITE;
+    // style_terminal.text.color = lv_color_make(0xE0, 0xE0, 0xE0);
+
+    label = lv_label_create(parent, NULL);
+    lv_obj_set_size(label, lv_page_get_scrl_width(parent), lv_obj_get_height(parent));
+    lv_label_set_text(label,"");
+    lv_label_set_style(label,LV_LABEL_STYLE_MAIN,&style_terminal);
+     //lv_obj_set_event_cb(ta, text_area_event_handler);
+    //lv_style_copy(&style_kb, &lv_style_plain);
+   // lv_ta_set_text_sel(ta, true);
+
+    /*Create a label for the text of the terminal*/
+    // label = lv_label_create(parent, NULL);
+    // lv_label_set_long_mode(label, LV_LABEL_LONG_BREAK);
+    // lv_obj_set_width(label, lv_win_get_width(parent));
+    // lv_label_set_static_text(label, txt_log);  
+    // lv_label_set_style(label,LV_LABEL_STYLE_MAIN, &style_terminal);         /*Use the text array directly*/
+
+    /*Create a clear button*/
+    // clr_btn = lv_btn_create(parent, NULL);
+    // lv_btn_set_fit(clr_btn, LV_FIT_TIGHT);
+    // lv_obj_set_event_cb(clr_btn, clr_event_cb);
+    // lv_obj_t * btn_label = lv_label_create(clr_btn, NULL);
+    // lv_label_set_text(btn_label, "Clear");
+}
+
+/**
+ * Add data to the terminal
+ * @param txt_in character sting to add to the terminal
+ */
+void terminal_add(const char * txt_in)
+{
+    if(label == NULL) return;                 /*Check if the window is exists*/
+
+    uint16_t txt_len = strlen(txt_in);
+    uint16_t old_len = strlen(txt_log);
+
+    /*If the data is longer then the terminal ax size show the last part of data*/
+    if(txt_len > TERMINAL_LOG_LENGTH) {
+        txt_in += (txt_len - TERMINAL_LOG_LENGTH);
+        txt_len = TERMINAL_LOG_LENGTH;
+        old_len = 0;
+    }
+    /*If the text become too long 'forget' the oldest lines*/
+    else if(old_len + txt_len > TERMINAL_LOG_LENGTH) {
+        uint16_t new_start;
+        for(new_start = 0; new_start < old_len; new_start++) {
+            if(txt_log[new_start] == '\n') {
+                /*If there is enough space break*/
+                if(new_start >= txt_len) {
+                    /*Ignore line breaks*/
+                    while(txt_log[new_start] == '\n' || txt_log[new_start] == '\r') new_start++;
+                    break;
+                }
+            }
+        }
+
+        /* If it wasn't able to make enough space on line breaks
+         * simply forget the oldest characters*/
+        if(new_start == old_len) {
+            new_start = old_len - (TERMINAL_LOG_LENGTH - txt_len);
+        }
+        /*Move the remaining text to the beginning*/
+        uint16_t j;
+        for(j = new_start; j < old_len; j++) {
+            txt_log[j - new_start] = txt_log[j];
+        }
+        old_len = old_len - new_start;
+        txt_log[old_len] = '\0';
+
+    }
+
+    memcpy(&txt_log[old_len], txt_in, txt_len);
+    txt_log[old_len + txt_len] = '\0';
+
+    lv_label_set_static_text(label, txt_log);
+    //lv_win_focus(win, clr_btn, TERMINAL_ANIM_TIME);
+}
+
+
+/**
+ * Called when the Clear button is click to clear the text of the terminal
+ * @param btn pointer to the clear button
+ * @param event the current event
+ */
+static void clr_event_cb(lv_obj_t * btn, lv_event_t event)
+{
+    (void) btn;    /*Unused*/
+
+    if(event != LV_EVENT_CLICKED) return;
+
+    txt_log[0] = '\0';
+    lv_label_set_static_text(label, txt_log);   /*Refresh the text*/
 }
 
 /**

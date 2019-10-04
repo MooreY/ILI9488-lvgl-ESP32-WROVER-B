@@ -1,10 +1,10 @@
 /**
- * @file demo.h
+ * @file tpcal.h
  *
  */
 
-#ifndef DEMO_H
-#define DEMO_H
+#ifndef TPCAL_H
+#define TPCAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -13,7 +13,6 @@ extern "C" {
 /*********************
  *      INCLUDES
  *********************/
-
 #ifdef LV_CONF_INCLUDE_SIMPLE
 #include "lvgl.h"
 #include "lv_ex_conf.h"
@@ -22,6 +21,8 @@ extern "C" {
 //#include "../../../lv_ex_conf.h"
 #endif
 
+
+#if LV_USE_TPCAL
 
 /*********************
  *      DEFINES
@@ -36,20 +37,18 @@ extern "C" {
  **********************/
 
 /**
- * Create a demo application
+ * Create a touch pad calibration screen
  */
-lv_group_t* demo_create();
-void add_text_to_demo(const char * text);
-void add_list_button(const char * label);
-void terminal_add(const char * txt_in);
+void tpcal_create(void);
 
 /**********************
  *      MACROS
  **********************/
 
+#endif /*LV_USE_TPCAL*/
 
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
 
-#endif /*DEMO_H*/
+#endif /*TP_CAL_H*/

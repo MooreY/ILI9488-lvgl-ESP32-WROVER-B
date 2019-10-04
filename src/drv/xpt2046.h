@@ -7,10 +7,11 @@
 #define XPT2046_H
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-/*********************
+    /*********************
  *      INCLUDES
  *********************/
 
@@ -24,22 +25,22 @@ extern "C" {
 #define XPT2046_IRQ 25
 
 #define XPT2046_AVG 4
-#define XPT2046_X_MIN       1000
-#define XPT2046_Y_MIN       1000
-#define XPT2046_X_MAX       3200
-#define XPT2046_Y_MAX       2000
-#define XPT2046_X_INV       1
-#define XPT2046_Y_INV       1
+#define XPT2046_X_MIN 235
+#define XPT2046_Y_MIN 154
+#define XPT2046_X_MAX 3970
+#define XPT2046_Y_MAX 3870
+#define XPT2046_X_INV 0
+#define XPT2046_Y_INV 0
 
 /**********************
  *      TYPEDEFS
  **********************/
-
+static const char* TAG = "xpt2046";
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
 void xpt2046_init(void);
-bool xpt2046_read(lv_indev_drv_t * drv, lv_indev_data_t * data);
+bool xpt2046_read(lv_indev_drv_t *drv, lv_indev_data_t *data);
 
 /**********************
  *      MACROS

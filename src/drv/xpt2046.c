@@ -11,6 +11,7 @@
 #include "driver/gpio.h"
 #include "tp_spi.h"
 #include <stddef.h>
+#include <esp_log.h>
 
 /*********************
  *      DEFINES
@@ -48,6 +49,7 @@ uint8_t avg_last;
  */
 void xpt2046_init(void)
 {
+    ESP_LOGD(TAG,"INIT code\n");
     gpio_set_direction(XPT2046_IRQ, GPIO_MODE_INPUT);
     gpio_set_direction(TP_SPI_CS, GPIO_MODE_OUTPUT);
     gpio_set_level(TP_SPI_CS, 1);
@@ -68,6 +70,8 @@ bool xpt2046_read(lv_indev_drv_t * drv, lv_indev_data_t * data)
 
     int16_t x = 0;
     int16_t y = 0;
+    int16_t xr = 0;
+    int16_t yr = 0;
 
     uint8_t irq = gpio_get_level(XPT2046_IRQ);
 
@@ -90,12 +94,14 @@ bool xpt2046_read(lv_indev_drv_t * drv, lv_indev_data_t * data)
         /*Normalize Data*/
         x = x >> 3;
         y = y >> 3;
+        xr=x;
+        yr=y;
         xpt2046_corr(&x, &y);
         xpt2046_avg(&x, &y);
         last_x = x;
         last_y = y;
 
-
+        ESP_LOGD(TAG,"raw: %d, %d screen %d, %d",xr,yr,x,y);
     } else {
         x = last_x;
         y = last_y;
@@ -122,11 +128,15 @@ static void xpt2046_corr(int16_t * x, int16_t * y)
     *y = swap_tmp;
 #endif
 
-    if((*x) > XPT2046_X_MIN)(*x) -= XPT2046_X_MIN;
-    else(*x) = 0;
+    if((*x) > XPT2046_X_MIN) 
+        (*x) -= XPT2046_X_MIN;
+    else
+        (*x) = 0;
 
-    if((*y) > XPT2046_Y_MIN)(*y) -= XPT2046_Y_MIN;
-    else(*y) = 0;
+    if((*y) > XPT2046_Y_MIN)
+        (*y) -= XPT2046_Y_MIN;
+    else
+        (*y) = 0;
 
     (*x) = (uint32_t)((uint32_t)(*x) * LV_HOR_RES) /
            (XPT2046_X_MAX - XPT2046_X_MIN);
