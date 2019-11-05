@@ -34,14 +34,14 @@ extern "C" {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-
+lv_obj_t* sw_light1;
 /**
  * Create a demo application
  */
-lv_group_t* demo_create();
+void demo_create();
 void add_text_to_demo(const char * text);
 void add_list_button(const char * label);
-void terminal_add(const char * txt_in);
+void terminal_add(const char * txt_in, int len );
 
 /**********************
  *      MACROS

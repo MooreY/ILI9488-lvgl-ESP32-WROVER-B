@@ -33,6 +33,7 @@ static void chart_create(lv_obj_t *parent);
 static void terminal_create(lv_obj_t *parent);
 static void slider_event_handler(lv_obj_t *slider, lv_event_t event);
 static void list_btn_event_handler(lv_obj_t *slider, lv_event_t event);
+static void sw1_event_handler(lv_obj_t* btn, lv_event_t event);
 #if LV_DEMO_SLIDE_SHOW
 static void tab_switcher(lv_task_t *task);
 #endif
@@ -52,8 +53,6 @@ static char txt_log[TERMINAL_LOG_LENGTH + 1];
 static lv_style_t style_kb;
 static lv_style_t style_kb_rel;
 static lv_style_t style_kb_pr;
-
-static lv_group_t *g;
 
 #if LV_DEMO_WALLPAPER
 LV_IMG_DECLARE(img_bubble_pattern)
@@ -79,12 +78,10 @@ void add_list_button(const char * label) {
 /**
  * Create a demo application
  */
-lv_group_t *demo_create()
+void demo_create()
 {
     lv_coord_t hres = lv_disp_get_hor_res(NULL);
     lv_coord_t vres = lv_disp_get_ver_res(NULL);
-
-    g = lv_group_create();
 
 #if LV_DEMO_WALLPAPER
     lv_obj_t *wp = lv_img_create(lv_disp_get_scr_act(NULL), NULL);
@@ -116,7 +113,6 @@ lv_group_t *demo_create()
 
     lv_obj_t *tv = lv_tabview_create(lv_disp_get_scr_act(NULL), NULL);
     lv_obj_set_size(tv, hres, vres);
-    lv_group_add_obj(g, tv);
 
 #if LV_DEMO_WALLPAPER
     lv_obj_set_parent(wp, ((lv_tabview_ext_t *)tv->ext_attr)->content);
@@ -127,11 +123,6 @@ lv_group_t *demo_create()
     lv_obj_t *tab2 = lv_tabview_add_tab(tv, "List");
     lv_obj_t *tab3 = lv_tabview_add_tab(tv, "Chart");
     lv_obj_t *tab4 = lv_tabview_add_tab(tv, "Terminal");
-
-    lv_group_add_obj(g, tab1);
-    lv_group_add_obj(g, tab2);
-    lv_group_add_obj(g, tab3);
-    lv_group_add_obj(g, tab4);
 
 #if LV_DEMO_WALLPAPER == 0
     /*Blue bg instead of wallpaper*/
@@ -152,7 +143,6 @@ lv_group_t *demo_create()
     #if LV_DEMO_SLIDE_SHOW
     lv_task_create(tab_switcher, 3000, LV_TASK_PRIO_MID, tv);
 #endif
-    return g;
 }
 
 /**********************
@@ -289,7 +279,6 @@ static void list_create(lv_obj_t *parent)
 
     lv_page_set_style(parent, LV_PAGE_STYLE_BG, &lv_style_transp_fit);
     lv_page_set_style(parent, LV_PAGE_STYLE_SCRL, &lv_style_transp_fit);
-
     lv_page_set_sb_mode(parent, LV_SB_MODE_OFF);
 
     /*Create styles for the buttons*/
@@ -314,8 +303,7 @@ static void list_create(lv_obj_t *parent)
     lv_list_set_style(list, LV_LIST_STYLE_SCRL, &lv_style_transp_tight);
     lv_list_set_style(list, LV_LIST_STYLE_BTN_REL, &style_btn_rel);
     lv_list_set_style(list, LV_LIST_STYLE_BTN_PR, &style_btn_pr);
-    lv_obj_align(list, NULL, LV_ALIGN_IN_TOP_MID, 0, LV_DPI / 4);
-    lv_group_add_obj(g,list);
+    lv_obj_align(list, NULL, LV_ALIGN_IN_TOP_LEFT, 0, LV_DPI / 4);
 
     lv_obj_t *list_btn;
     list_btn = lv_list_add_btn(list, LV_SYMBOL_FILE, "New");
@@ -339,15 +327,18 @@ static void list_create(lv_obj_t *parent)
     list_btn = lv_list_add_btn(list, LV_SYMBOL_GPS, "GPS");
     lv_obj_set_event_cb(list_btn, list_btn_event_handler);
 
-    lv_obj_t *mbox = lv_mbox_create(parent, NULL);
-    lv_mbox_set_text(mbox, "Click a button to copy its text to the Text area ");
-    lv_obj_set_width(mbox, hres - LV_DPI);
-    static const char *mbox_btns[] = {"Got it", ""};
-    lv_mbox_add_btns(mbox, mbox_btns); /*The default action is close*/
-    lv_obj_align(mbox, parent, LV_ALIGN_IN_TOP_MID, 0, LV_DPI / 2);
+    // lv_obj_t *mbox = lv_mbox_create(parent, NULL);
+    // lv_mbox_set_text(mbox, "Click a button to copy its text to the Text area ");
+    // lv_obj_set_width(mbox, hres - LV_DPI);
+    // static const char *mbox_btns[] = {"Got it", ""};
+    // lv_mbox_add_btns(mbox, mbox_btns); /*The default action is close*/
+    // lv_obj_align(mbox, parent, LV_ALIGN_IN_TOP_MID, 0, LV_DPI / 2);
 
-    lv_group_add_obj(g,mbox);
-    lv_group_add_obj(g,list_btn);
+	sw_light1 = lv_sw_create(parent, NULL);
+	lv_obj_align(sw_light1, NULL, LV_ALIGN_IN_TOP_RIGHT, -50, LV_DPI / 2);
+	lv_obj_set_event_cb(sw_light1, sw1_event_handler);
+	lv_obj_set_style(sw_light1, &lv_style_pretty_color);
+    
 }
 
 #if LV_USE_ANIMATION
@@ -452,43 +443,31 @@ static void terminal_create(lv_obj_t *parent)
 
     static lv_style_t style_terminal;
     lv_style_copy(&style_terminal, &lv_style_pretty);
-    // style_terminal.body.main_color = lv_color_make(0x30, 0x30, 0x30);
-    // style_terminal.body.grad_color = lv_color_make(0x30, 0x30, 0x30);
-    // style_terminal.body.border.color = LV_COLOR_WHITE;
-    // style_terminal.text.color = lv_color_make(0xE0, 0xE0, 0xE0);
 
     label = lv_label_create(parent, NULL);
     lv_obj_set_size(label, lv_page_get_scrl_width(parent), lv_obj_get_height(parent));
     lv_label_set_text(label,"");
     lv_label_set_style(label,LV_LABEL_STYLE_MAIN,&style_terminal);
-     //lv_obj_set_event_cb(ta, text_area_event_handler);
-    //lv_style_copy(&style_kb, &lv_style_plain);
-   // lv_ta_set_text_sel(ta, true);
-
-    /*Create a label for the text of the terminal*/
-    // label = lv_label_create(parent, NULL);
-    // lv_label_set_long_mode(label, LV_LABEL_LONG_BREAK);
-    // lv_obj_set_width(label, lv_win_get_width(parent));
-    // lv_label_set_static_text(label, txt_log);  
-    // lv_label_set_style(label,LV_LABEL_STYLE_MAIN, &style_terminal);         /*Use the text array directly*/
 
     /*Create a clear button*/
-    // clr_btn = lv_btn_create(parent, NULL);
-    // lv_btn_set_fit(clr_btn, LV_FIT_TIGHT);
-    // lv_obj_set_event_cb(clr_btn, clr_event_cb);
-    // lv_obj_t * btn_label = lv_label_create(clr_btn, NULL);
-    // lv_label_set_text(btn_label, "Clear");
+    clr_btn = lv_btn_create(parent, NULL);
+    lv_btn_set_fit(clr_btn, LV_FIT_TIGHT);
+    lv_obj_set_event_cb(clr_btn, clr_event_cb);
+    lv_obj_t * btn_label = lv_label_create(clr_btn, NULL);
+    lv_label_set_text(btn_label, "Clear");
+    lv_obj_align(clr_btn, NULL,LV_ALIGN_IN_BOTTOM_RIGHT, -50, -30);
 }
 
 /**
  * Add data to the terminal
  * @param txt_in character sting to add to the terminal
  */
-void terminal_add(const char * txt_in)
+void terminal_add(const char * txt_in , int len)
 {
     if(label == NULL) return;                 /*Check if the window is exists*/
-
-    uint16_t txt_len = strlen(txt_in);
+    uint16_t txt_len = len;
+    if(txt_len == 0)
+        txt_len = strlen(txt_in);
     uint16_t old_len = strlen(txt_log);
 
     /*If the data is longer then the terminal ax size show the last part of data*/
@@ -578,6 +557,14 @@ static void list_btn_event_handler(lv_obj_t *btn, lv_event_t event)
         lv_ta_add_char(ta, '\n');
         lv_ta_add_text(ta, lv_list_get_btn_text(btn));
     }
+}
+
+static void sw1_event_handler(lv_obj_t* btn, lv_event_t event)
+{
+	if (event == LV_EVENT_SHORT_CLICKED) {
+		lv_ta_add_char(ta, '\n');
+		lv_ta_add_text(ta, lv_list_get_btn_text(btn));
+	}
 }
 
 #if LV_DEMO_SLIDE_SHOW

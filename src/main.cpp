@@ -1,26 +1,26 @@
 #include <Arduino.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "esp_freertos_hooks.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <esp_freertos_hooks.h>
+#include <esp_log.h>
 #include <lvgl/lvgl.h>
-#include <WiFi.h>
 
 #include "drv/disp_spi.h"
 #include "drv/ili9488.h"
 #include "drv/tp_spi.h"
 #include "drv/xpt2046.h"
+//#include <tpcal/tpcal.h>
+
 #include <demo/demo.h>
-#include <tpcal/tpcal.h>
+#include <components/mqtt.h>
+#include <ui/ui.h>
 
-#include <esp_log.h>
-
-//#include "mqtt.h"
-#define WIFI_SSID "KELPNET_IOT"
-#define WIFI_PASSWORD "GROENEPAARDENSCHOENEN"
 
 #define LVGL_TICK_PERIOD 20
 
+
 static const char* TAG_MAIN = "MAIN";
+UI ui;
 
 static void IRAM_ATTR lv_tick_task(void)
 {
@@ -52,9 +52,20 @@ void testram(int ramSize)
   ESP_LOGD(TAG_MAIN, " %7d Bytes: %7d OK, %7d Errors.\n", ramSize, ramSize - e, e);
 }
 
+void mqtt_cb(const std::string &topic, const std::string &payload) {
+   Serial.printf( "MQTT CB %s, payload %s", topic.c_str(), payload.c_str());
+   UI_Object *obj = ui.find_object_by_id(100);
+   if(obj!=nullptr){
+     obj->set_value(topic);
+   }
+}
+
+void ui_callback(int id) {
+  Serial.printf( "UI CB id=%d", id);
+}
+
 void setup()
 {
-
   Serial.begin(115200); /* prepare for possible serial debug */
   esp_log_level_set("*", ESP_LOG_INFO);
   // ledcSetup(10, 5000/*freq*/, 10 /*resolution*/);
@@ -77,11 +88,8 @@ void setup()
 
   lv_init();
 
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
+  connectToWifi();
+
   static uint16_t buffer_size = 20;
   // static lv_color_t * buf1 = (lv_color_t *) ps_malloc(sizeof(lv_color_t) * LV_HOR_RES_MAX * buffer_size);
   // static lv_color_t * buf2 = (lv_color_t *) ps_malloc(sizeof(lv_color_t) * LV_HOR_RES_MAX * buffer_size);
@@ -113,19 +121,21 @@ void setup()
   //tpcal_create();
   demo_create();
   //ledcWrite(10,1024);
-  WiFi.localIP();
-  String data = "IP adress: " + WiFi.localIP().toString();
-  add_text_to_demo(data.c_str());
-  add_list_button(data.c_str());
-  //init_mqtt();
-
+  String data = "IP adress: " + get_local_ip();
+  // terminal_add(data.c_str(), data.length());
+  // add_list_button(data.c_str());
+ 
+  mqtt_subscribe("tft/switch", mqtt_cb,1);
+  //UI_Object *obj = ui.add_ui_object(100,1,lv_disp_get_scr_act(NULL),ui_callback,"label");
+  //obj = ui.add_ui_object(101,2,lv_disp_get_scr_act(NULL),ui_callback,"label");
 }
 
 void loop()
 {
   vTaskDelay(1);
-  // if (WiFi.status() != WL_CONNECTED) {
-     terminal_add("Wifi disconnected\n");
-  // }
+  if (!wifi_is_connected()) {
+     terminal_add("Wifi disconnected\n",0);
+  }
+  //mqtt_loop();
   lv_task_handler();
 }

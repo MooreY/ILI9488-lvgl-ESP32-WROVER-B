@@ -111,13 +111,13 @@ void ili9488_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * col
 {
   uint32_t size = lv_area_get_width(area) * lv_area_get_height(area);
 
-  lv_color32_t* buffer_32bit = (lv_color32_t*) color_map;
-  lv_color_custom_t* buffer_24bit = (lv_color_custom_t*) color_map;
-  for(int x=0; x < size; x++) {
-    buffer_24bit[x].red = buffer_32bit[x].ch.blue;
-    buffer_24bit[x].green = buffer_32bit[x].ch.green;
-    buffer_24bit[x].blue = buffer_32bit[x].ch.red;
-  }
+//   lv_color32_t* buffer_32bit = (lv_color32_t*) color_map;
+//   lv_color_custom_t* buffer_24bit = (lv_color_custom_t*) color_map;
+//   for(int x=0; x < size; x++) {
+//     buffer_24bit[x].red = buffer_32bit[x].ch.blue;
+//     buffer_24bit[x].green = buffer_32bit[x].ch.green;
+//     buffer_24bit[x].blue = buffer_32bit[x].ch.red;
+//   }
 
   /*Column addresses*/
   uint8_t xb[] = { (uint8_t) (area->x1 >>8) & 0xFF, (uint8_t) (area->x1) & 0xFF, (uint8_t) (area->x2>>8) & 0xFF, (uint8_t) (area->x2) & 0xFF, };
@@ -131,7 +131,8 @@ void ili9488_flush(lv_disp_drv_t * drv, const lv_area_t * area, lv_color_t * col
 
   /*Memory write*/
   ili9488_send_cmd(ILI9488_CMD_MEMORY_WRITE);
-  ili9488_send_color((void*)buffer_24bit, size*3);
+  ili9488_send_color((void*)color_map, size*2);
+  
 }
 
 /**********************
