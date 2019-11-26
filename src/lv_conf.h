@@ -29,11 +29,11 @@
  * - 16: RGB565
  * - 32: ARGB8888
  */
-#define LV_COLOR_DEPTH     16
+#define LV_COLOR_DEPTH     32
 
 /* Swap the 2 bytes of RGB565 color.
  * Useful if the display has a 8 bit interface (e.g. SPI)*/
-#define LV_COLOR_16_SWAP   1
+#define LV_COLOR_16_SWAP   0
 
 /* 1: Enable screen transparency.
  * Useful for OSD or other overlapping GUIs.
@@ -152,7 +152,7 @@ typedef void * lv_fs_drv_user_data_t;
 #endif
 
 /*1: Add a `user_data` to drivers and objects*/
-#define LV_USE_USER_DATA        0
+#define LV_USE_USER_DATA        1
 
 /*========================
  * Image decoder and cache
@@ -232,12 +232,12 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
 /*================
  *  THEME USAGE
  *================*/
-#define LV_THEME_LIVE_UPDATE    0   /*1: Allow theme switching at run time. Uses 8..10 kB of RAM*/
+#define LV_THEME_LIVE_UPDATE    1   /*1: Allow theme switching at run time. Uses 8..10 kB of RAM*/
 
 #define LV_USE_THEME_TEMPL      0   /*Just for test*/
 #define LV_USE_THEME_DEFAULT    0   /*Built mainly from the built-in styles. Consumes very few RAM*/
 #define LV_USE_THEME_ALIEN      0   /*Dark futuristic theme*/
-#define LV_USE_THEME_NIGHT      0   /*Dark elegant theme*/
+#define LV_USE_THEME_NIGHT      1   /*Dark elegant theme*/
 #define LV_USE_THEME_MONO       0   /*Mono color theme for monochrome displays*/
 #define LV_USE_THEME_MATERIAL   0   /*Flat theme with bold colors and light shadows*/
 #define LV_USE_THEME_ZEN        0   /*Peaceful, mainly light theme */
@@ -302,7 +302,7 @@ typedef void * lv_font_user_data_t;
  *==================*/
 
 /*Declare the type of the user data of object (can be e.g. `void *`, `int`, `struct`)*/
-typedef void * lv_obj_user_data_t;
+typedef uint32_t lv_obj_user_data_t;
 
 /*1: enable `lv_obj_realaign()` based on `lv_obj_align()` parameters*/
 #define LV_USE_OBJ_REALIGN          1
