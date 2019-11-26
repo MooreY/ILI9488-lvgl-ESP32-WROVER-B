@@ -56,7 +56,7 @@ void connectToWifi()
   connectToMqtt();
 }
 
-bool wifi_is_connected()
+bool IRAM_ATTR wifi_is_connected()
 {
   return WiFi.status() == WL_CONNECTED;
 }
