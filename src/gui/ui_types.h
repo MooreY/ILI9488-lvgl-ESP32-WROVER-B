@@ -66,11 +66,6 @@ typedef struct {
 	lv_style_t* style;
 } ui_styles_t;
 
-typedef struct {
-	ui_object_id id;
-	const char* topic;
-} mqtt_ui_object_t;
-
 typedef int (*update_cb_t) (uint32_t);
 
 typedef struct ui_object_t ui_object_t;
@@ -79,6 +74,7 @@ typedef void (*ui_object_handler_cb_ptr)(ui_object_t*, ui_event_t);
 class ui_object_t {
 public:
 	ui_object_id id;
+	ui_object_id parent_id;
 	ui_object_type type;
 	lv_obj_t* lv_obj;
 	ui_object_handler_cb_ptr ui_callback;
@@ -165,11 +161,12 @@ public:
 	int step;
 	int fract;
 
-	void apply_specs(lv_obj_t* lv_obj_spinner) {
-		lv_spinbox_set_digit_format(lv_obj_spinner, digit_count, seperator_pos);
-		lv_spinbox_set_padding_left(lv_obj_spinner, left_number_padding);
-		lv_spinbox_set_range(lv_obj_spinner, min, max);
-		lv_spinbox_set_step(lv_obj_spinner, step);
+	void apply_specs(ui_object_t* ui_obj_spinner) {
+		ui_obj_spinner->object_data = this;
+		lv_spinbox_set_digit_format(ui_obj_spinner->lv_obj, digit_count, seperator_pos);
+		lv_spinbox_set_padding_left(ui_obj_spinner->lv_obj, left_number_padding);
+		lv_spinbox_set_range(ui_obj_spinner->lv_obj, min, max);
+		lv_spinbox_set_step(ui_obj_spinner->lv_obj, step);
 	}
 };
 

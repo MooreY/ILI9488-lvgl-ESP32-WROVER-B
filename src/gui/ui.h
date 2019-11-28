@@ -20,6 +20,10 @@ public:
 	ui_object_value get_value(ui_object_t* ui_obj);
 
 	void set_value(ui_object_id id, ui_object_value* value);
+	void set_value(ui_object_id id, bool value);
+	void set_value(ui_object_id id, int value);
+	void set_value(ui_object_id id, char* value);
+	void set_value(ui_object_id id, calendar_value_type type, int day = 0, int month = 0, int year = 0);
 	bool toggle_value(ui_object_id id);
 
 	void set_size(ui_object_id id, lv_coord_t width, lv_coord_t height = 0);
@@ -81,10 +85,10 @@ protected:
 	lv_obj_t* find_parent_object(ui_object_id id);
 	static ui_object_t* find_object_by_ref(lv_obj_t* ref);
 
-	ui_object_t* add_tab(lv_obj_t* parent, ui_object_id id, const char* text);
+	ui_object_t* add_tab(lv_obj_t* parent, ui_object_id id, ui_object_id parent_id, const char* text);
 
-	ui_object_t* add_object(lv_obj_t* lv_obj, ui_object_id id, ui_object_type object_type, ui_object_handler_cb_ptr callback = nullptr);
-	bool delete_ui_object(ui_object_t* ui_kb);
+	ui_object_t* add_object(lv_obj_t* lv_obj, ui_object_id id, ui_object_id parent_id, ui_object_type object_type, ui_object_handler_cb_ptr callback = nullptr);
+//	bool delete_ui_object(static ui_object_t* ui_kb);
 
 	static void event_handler(lv_obj_t* lv_obj, lv_event_t lv_event);
 	static void text_area_event_handler(lv_obj_t* text_area, lv_event_t event);

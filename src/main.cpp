@@ -3,6 +3,7 @@
 #include <esp_log.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <string>
 #include <lvgl/lvgl.h>
 
 
@@ -45,10 +46,10 @@ static lv_style_t panel_bg;
 /**********************
  *      TYPEDEFS
  **********************/
-// typedef struct {
-// 	ui_object_id id;
-// 	const char* topic;
-// } mqtt_ui_object_t;
+typedef struct {
+	ui_object_id id;
+	const char* topic;
+} mqtt_ui_object_t;
 
 typedef int (*update_cb_t)(uint32_t);
 
@@ -94,15 +95,17 @@ static ui_tab_item_t tabview_items[] = {
 static const int NUM_TAB_ITEMS = 5;
 
 static mqtt_ui_object_t ui_subscriber_list[] = {
-    {ID_SLIDER_LEDS, "led/light"},
+    {ID_LED_BACKLIGHT, "led/light"},
     {ID_SWITCH_LEDS, "tft/switch"},
 };
 static const int NUM_SUBSCRIBERS = 2;
 
-static mqtt_ui_object_t ui_publisher_list[] = {{ID_SLIDER_LEDS, "top/light"},
-                                               {ID_SWITCH_LEDS, "top/switch"},
-                                               {ID_SWITCH_GANG, "gang/switch"}};
-static const int NUM_PUBLISHERS = 3;
+static mqtt_ui_object_t ui_publisher_list[] = {{ID_SLIDER_LEDS, "slider/leds"},
+                                               {ID_SWITCH_LEDS, "switch/leds"},
+                                               {ID_SWITCH_GANG, "switch/gang"},
+											   {ID_CB_BACKLIGHT, "ceckbox/backlight"},
+											   {ID_CB_SCREENSAVER, "checkbox/screensaver"}};
+static const int NUM_PUBLISHERS = 5;
 
 static ui_dropdown_specs *dropdown_spec = new ui_dropdown_specs({"Apple\n"
                                                                  "Banana\n"
@@ -122,106 +125,94 @@ std::vector<ui_object_t *> ui_time_objects;
  *      EVENT HANDLERS
  **********************/
 #ifdef USE_MQTT
-// void mqtt_cb(const std::string& topic, const std::string& payload) {
-// 	printf("MQTT CB %s, payload %s\n", topic.c_str(), payload.c_str());
-// 	ui.label_add_text(ID_TERMINAL, topic.c_str(), TERMINAL_LOG_LENGTH);
-// 	if (topic.compare("tft/switch") == 0) {
-// 		bool state = payload.compare("ON");
-// 		ui.set_value(ID_SWITCH_LEDS, 1, state);
-// 		ui.set_value(ID_LED_MQTT, 1, state);
-// 	}
-// 	else if (topic.compare("led/light") == 0) {
-// 		std::string err;
+void mqtt_cb(const std::string& topic, const std::string& payload) {
+	printf("MQTT CB %s, payload %s\n", topic.c_str(), payload.c_str());
+	ui.label_add_text(ID_TERMINAL, topic.c_str(), TERMINAL_LOG_LENGTH);
+	if (topic.compare("tft/switch") == 0) {
+		bool state = payload.compare("ON");
+		ui.set_value(ID_SWITCH_LEDS, state);
+		ui.set_value(ID_LED_MQTT, state);
+	}
+	// else if (topic.compare("led/light") == 0) {
+	// 	std::string err;
 
-// 		Json json_payl = Json::parse(payload, err);
-// 		int value = json_payl["brightness"].int_value();
-// 		ui.set_value(ID_BAR_VALUE, 1, value);
-// 	}
-// }
+	// 	Json json_payl = Json::parse(payload, err);
+	// 	int value = json_payl["brightness"].int_value();
+	// 	ui.set_value(ID_BAR_VALUE, 1, value);
+	// }
+}
 
-std::string *get_ui_publisher_topic(ui_object_id id) {
+const char* get_ui_publisher_topic(ui_object_id id) {
   for (int i = 0; i < NUM_PUBLISHERS; i++) {
     if (ui_publisher_list[i].id == id) {
-      return new std::string(ui_publisher_list[i].topic);
+      return ui_publisher_list[i].topic;
     }
   }
   return nullptr;
 }
 #endif
 
-void ui_handler(ui_object_t *ui_object, ui_event_t event) {
-  switch (ui_object->id) {
-  case ID_CB_BACKLIGHT:
-  case ID_CB_SCREENSAVER:
-  case ID_SWITCH_LEDS:
-  case ID_SWITCH_GANG: {
-    auto value = ui.get_value(ui_object);
-	MQTTMessage msg;
-    auto topic = get_ui_publisher_topic(ui_object->id);
-
-    //mqtt_publish(topic, value.get_string());
-    ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
-    if (ui_object->id == ID_CB_BACKLIGHT)
-      ui.set_value(ID_LED_BACKLIGHT, &value);
-    if (ui_object->id == ID_CB_SCREENSAVER)
-      ui.set_value(ID_LED_SCREENSAVER, &value);
-    if (ui_object->id == ID_SWITCH_LEDS) {
-      ui.set_value(ID_LED_SCREENSAVER, &value);
-    }
-    break;
-  }
-  case ID_SLIDER_LEDS: {
-    auto value = ui.get_value(ui_object);
-    // mqtt_publish(get_ui_publisher_topic(ID_SLIDER_LEDS), value.get_string());
-    ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
-    ui.set_value(ID_BAR_VALUE, &value);
-    break;
-  }
-  case ID_BUTTON_CLEAR: {
-    ui_object_value value;
-    value.char_value = "";
-    ui.set_value(ID_TERMINAL, &value);
-    break;
-  }
-  case ID_CALENDAR: {
-    auto value = ui.get_value(ui_object);
-    ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
-    ui.set_value(ID_LABEL_DATE, &value);
-    break;
-  }
-  case ID_SPINBOX: {
-    if (event == ui_event_t::CLICKED) {
-      ui.spinbox_increment(ID_SPINBOX, true);
-      auto value = ui.get_value(ui_object);
-      ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
-    }
-    break;
-  }
-  case ID_ROLLER: {
-    if (event == ui_event_t::VALUE_CHANGED) {
-      auto value = ui.get_value(ui_object);
-      ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
-    }
-    break;
-  }
-  case ID_DROPDOWN: {
-    if (event == ui_event_t::VALUE_CHANGED) {
-      auto value = ui.get_value(ui_object);
-      ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
-    }
-    break;
-  }
-  case ID_TEXTAREA_INPUT: {
-    if (event == ui_event_t::CLICKED) {
-      printf("klicked TA");
-    }
-    if (event == ui_event_t::VALUE_CHANGED) {
-      auto value = ui.get_value(ui_object);
-      ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
-    }
-    break;
-  }
-  }
+void ui_handler(ui_object_t* ui_object, ui_event_t event) {
+	auto value = ui.get_value(ui_object);
+	switch (ui_object->id) {
+	case ID_CB_BACKLIGHT:
+		ui.set_value(ID_LED_BACKLIGHT, &value);
+	case ID_CB_SCREENSAVER:
+		ui.set_value(ID_LED_SCREENSAVER, &value);
+	case ID_SLIDER_LEDS:
+		ui.set_value(ID_BAR_VALUE, &value);
+	case ID_SWITCH_LEDS:
+	case ID_SWITCH_GANG: {
+		// std::string topic(get_ui_publisher_topic(ui_object->id));
+		// std::string payload = value.get_string();
+		// 
+		// mqtt_publish(topic, payload);
+		const char* topic = get_ui_publisher_topic(ui_object->id);
+		if(topic == nullptr)
+			break;
+		printf("topic %s\n",topic);
+		mqtt_publish(topic, value.char_value);
+		ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
+		break;
+	}
+	case ID_BUTTON_CLEAR: {
+		ui.set_value(ID_TERMINAL, "");
+		break;
+	}
+	case ID_CALENDAR: {
+		ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
+		ui.set_value(ID_LABEL_DATE, &value);
+		break;
+	}
+	case ID_SPINBOX: {
+		if (event == ui_event_t::CLICKED) {
+			ui.spinbox_increment(ID_SPINBOX, true);
+			ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
+		}
+		break;
+	}
+	case ID_ROLLER: {
+		if (event == ui_event_t::VALUE_CHANGED) {
+			ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
+		}
+		break;
+	}
+	case ID_DROPDOWN: {
+		if (event == ui_event_t::VALUE_CHANGED) {
+			ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
+		}
+		break;
+	}
+	case ID_TEXTAREA_INPUT: {
+		if (event == ui_event_t::CLICKED) {
+			printf("klicked TA");
+		}
+		if (event == ui_event_t::VALUE_CHANGED) {
+			ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
+		}
+		break;
+	}
+	}
 }
 
 /*
@@ -235,6 +226,8 @@ void list_handler(ui_object_t *ui_object, ui_event_t event) {
     if (!item)
       item = ui.object_id_in_list(list_items2, NUM_LIST_ITEMS2, ui_object);
     if (item) {
+		if(ui_object->parent_id == ID_LIST_SYMBOLS)
+			mqtt_publish("list/selection", item->label);
       ui.label_add_text(ID_TERMINAL, item->label, TERMINAL_LOG_LENGTH);
       switch (item->id) {
       case ID_LIST_SYMBOLS_AUDIO:
@@ -290,99 +283,72 @@ static const char *TAG_MAIN = "MAIN";
 
 static void IRAM_ATTR lv_tick_task(void) { lv_tick_inc(portTICK_RATE_MS); }
 
-void ui_create() {
+void create_gui() {
+	ui.add_tabview(ID_NONE, ID_TAB_VIEW, tabview_items, NUM_TAB_ITEMS, LV_HOR_RES, LV_VER_RES);
 
-  ui.add_tabview(ID_NONE, ID_TAB_VIEW, tabview_items, NUM_TAB_ITEMS, LV_HOR_RES,
-                 LV_VER_RES);
+	ui.add_label(ID_TAB1, ID_LABEL_LEDS, "leds achter de bank", LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 5, 10);
+	ui.add_switch(ID_TAB1, ID_SWITCH_LEDS, false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 150, 5);
+	ui.add_label(ID_TAB1, ID_LABEL_GANG, "kleur in gang", LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 5, 45);
+	ui.add_switch(ID_TAB1, ID_SWITCH_GANG, false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 150, 40);
+	ui.add_slider(ID_TAB1, ID_SLIDER_LEDS, 0, ui_handler, LV_ALIGN_OUT_RIGHT_MID, ID_SWITCH_LEDS, 20, 0);
+	ui.add_label(ID_TAB1, ID_LABEL_TIME, "10:00", LV_ALIGN_OUT_BOTTOM_LEFT, ID_SLIDER_LEDS, 5, 10);
 
-  ui.add_label(ID_TAB1, ID_LABEL_LEDS, "leds achter de bank",
-               LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 5, 10);
-  ui.add_switch(ID_TAB1, ID_SWITCH_LEDS, false, ui_handler,
-                LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 150, 5);
-  ui.add_label(ID_TAB1, ID_LABEL_GANG, "kleur in gang", LV_ALIGN_IN_TOP_LEFT,
-               ID_TAB1, 5, 45);
-  ui.add_switch(ID_TAB1, ID_SWITCH_GANG, false, ui_handler,
-                LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 150, 40);
-  ui.add_slider(ID_TAB1, ID_SLIDER_LEDS, 0, ui_handler, LV_ALIGN_OUT_RIGHT_MID,
-                ID_SWITCH_LEDS, 20, 0);
-  ui.add_label(ID_TAB1, ID_LABEL_TIME, "10:00", LV_ALIGN_OUT_BOTTOM_LEFT,
-               ID_SLIDER_LEDS, 5, 10);
+	ui.add_roller(ID_TAB1, ID_ROLLER, roller_specs, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_SWITCH_GANG, 0, 60);
+	ui.add_dropdown(ID_TAB1, ID_DROPDOWN, dropdown_spec, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_SWITCH_GANG, 0, 10);
+	ui.set_size(ID_DROPDOWN, 130, 0);
+	ui.set_size(ID_ROLLER, ID_DROPDOWN);
 
-  ui.add_roller(ID_TAB1, ID_ROLLER, roller_specs, ui_handler,
-                LV_ALIGN_OUT_BOTTOM_LEFT, ID_SWITCH_GANG, 0, 60);
-  ui.add_dropdown(ID_TAB1, ID_DROPDOWN, dropdown_spec, ui_handler,
-                  LV_ALIGN_OUT_BOTTOM_LEFT, ID_SWITCH_GANG, 0, 10);
-  ui.set_size(ID_DROPDOWN, 130, 0);
-  ui.set_size(ID_ROLLER, ID_DROPDOWN);
+	ui.add_list(ID_TAB2, ID_LIST_SYMBOLS, list_items, NUM_LIST_ITEMS, list_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB2, 5, 5);
+	ui.set_size(ID_LIST_SYMBOLS, 150, 200);
+	ui.add_list(ID_TAB2, ID_LIST2_SYMBOLS2, list_items2, NUM_LIST_ITEMS2, list_handler, LV_ALIGN_OUT_RIGHT_TOP, ID_LIST_SYMBOLS, 10, 0);
+	ui.set_size(ID_LIST2_SYMBOLS2, 150, 270);
+	ui.add_led(ID_TAB2, ID_LED_EXTRA2, false, LV_ALIGN_OUT_BOTTOM_LEFT, ID_LIST_SYMBOLS, 10, 10);
+	ui.set_size(ID_LED_EXTRA2, 20, 20);
+	ui.add_led(ID_TAB2, ID_LED_EXTRA3, false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA2, 20, 0);
+	ui.set_size(ID_LED_EXTRA3, ID_LED_EXTRA2);
+	ui.set_style(ID_LED_EXTRA3, &yellow_led);
+	ui.add_led(ID_TAB2, ID_LED_EXTRA4, false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA3, 20, 0);
+	ui.set_size(ID_LED_EXTRA4, ID_LED_EXTRA2);
+	ui.set_style(ID_LED_EXTRA4, &blue_led);
 
-  ui.add_list(ID_TAB2, ID_LIST_SYMBOLS, list_items, NUM_LIST_ITEMS,
-              list_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB2, 5, 5);
-  ui.set_size(ID_LIST_SYMBOLS, 150, 200);
-  ui.add_list(ID_TAB2, ID_LIST2_SYMBOLS2, list_items2, NUM_LIST_ITEMS2,
-              list_handler, LV_ALIGN_OUT_RIGHT_TOP, ID_LIST_SYMBOLS, 10, 0);
-  ui.set_size(ID_LIST2_SYMBOLS2, 150, 270);
-  ui.add_led(ID_TAB2, ID_LED_EXTRA2, false, LV_ALIGN_OUT_BOTTOM_LEFT,
-             ID_LIST_SYMBOLS, 10, 10);
-  ui.set_size(ID_LED_EXTRA2, 20, 20);
-  ui.add_led(ID_TAB2, ID_LED_EXTRA3, false, LV_ALIGN_OUT_RIGHT_TOP,
-             ID_LED_EXTRA2, 20, 0);
-  ui.set_size(ID_LED_EXTRA3, ID_LED_EXTRA2);
-  ui.set_style(ID_LED_EXTRA3, &yellow_led);
-  ui.add_led(ID_TAB2, ID_LED_EXTRA4, false, LV_ALIGN_OUT_RIGHT_TOP,
-             ID_LED_EXTRA3, 20, 0);
-  ui.set_size(ID_LED_EXTRA4, ID_LED_EXTRA2);
-  ui.set_style(ID_LED_EXTRA4, &blue_led);
+	ui.add_led(ID_TAB2, ID_LED_EXTRA5, false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA4, 20, 0);
+	ui.set_size(ID_LED_EXTRA5, ID_LED_EXTRA2);
+	ui.set_style(ID_LED_EXTRA5, &green_led);
 
-  ui.add_led(ID_TAB2, ID_LED_EXTRA5, false, LV_ALIGN_OUT_RIGHT_TOP,
-             ID_LED_EXTRA4, 20, 0);
-  ui.set_size(ID_LED_EXTRA5, ID_LED_EXTRA2);
-  ui.set_style(ID_LED_EXTRA5, &green_led);
+	ui.add_label(ID_TAB_TERMINAL, ID_TERMINAL, "BYE");
+	ui.set_style(ID_TERMINAL, &style_terminal, 0);
+	ui.add_button(ID_TAB_TERMINAL, ID_BUTTON_CLEAR, ID_BUTTON_CLEAR_LABEL, "Clear", ui_handler, LV_ALIGN_IN_BOTTOM_RIGHT, ID_TAB_TERMINAL, -10, 10);
+	ui.set_floating(ID_BUTTON_CLEAR, ID_TAB_TERMINAL);
+	ui.set_size(ID_BUTTON_CLEAR, 100, 40);
+	ui.add_textarea(ID_TAB_TERMINAL, ID_TEXTFIELD_SEARCH, UI_KEYB_TEXT, true, false, ui_handler, LV_ALIGN_IN_TOP_RIGHT, ID_TAB_TERMINAL, 0, 0);
+	ui.set_floating(ID_TEXTFIELD_SEARCH, ID_TAB_TERMINAL);
 
-  ui.add_label(ID_TAB_TERMINAL, ID_TERMINAL, "BYE");
-  ui.set_style(ID_TERMINAL, &style_terminal, 0);
-  ui.add_button(ID_TAB_TERMINAL, ID_BUTTON_CLEAR, ID_BUTTON_CLEAR_LABEL,
-                "Clear", ui_handler, LV_ALIGN_IN_BOTTOM_RIGHT, ID_TAB_TERMINAL,
-                -10, 10);
-  ui.set_floating(ID_BUTTON_CLEAR, ID_TAB_TERMINAL);
-  ui.set_size(ID_BUTTON_CLEAR, 100, 40);
-  ui.add_textarea(ID_TAB_TERMINAL, ID_TEXTFIELD_SEARCH, UI_KEYB_TEXT, true,
-                  false, ui_handler, LV_ALIGN_IN_TOP_RIGHT, ID_TAB_TERMINAL, 0,
-                  0);
-  ui.set_floating(ID_TEXTFIELD_SEARCH, ID_TAB_TERMINAL);
+	ui.add_checkbox(ID_TAB3, ID_CB_SCREENSAVER, "Screensaver", false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB3, 5, 10);
+	ui.add_checkbox(ID_TAB3, ID_CB_BACKLIGHT, "Backlight", false, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_CB_SCREENSAVER, 0, 0);
 
-  ui.add_checkbox(ID_TAB3, ID_CB_SCREENSAVER, "Screensaver", false, ui_handler,
-                  LV_ALIGN_IN_TOP_LEFT, ID_TAB3, 5, 10);
-  ui.add_checkbox(ID_TAB3, ID_CB_BACKLIGHT, "Backlight", false, ui_handler,
-                  LV_ALIGN_OUT_BOTTOM_LEFT, ID_CB_SCREENSAVER, 0, 0);
+	add_led_panel(ID_TAB3, ID_LED_PANEL, ID_CB_BACKLIGHT);
 
-  add_led_panel(ID_TAB3, ID_LED_PANEL, ID_CB_BACKLIGHT);
-  // //add_led_panel(ID_TAB3, ID_LED_PANEL2, ID_LED_PANEL);
+	ui.add_bar(ID_TAB3, ID_BAR_VALUE, 0, LV_ALIGN_OUT_BOTTOM_LEFT, ID_LED_PANEL, 0, 20);
+	ui.set_size(ID_BAR_VALUE, 200, 20);
+	//ui.set_style(ID_BAR_VALUE, &panel_bg);
 
-  ui.add_bar(ID_TAB3, ID_BAR_VALUE, 0, LV_ALIGN_OUT_BOTTOM_LEFT, ID_LED_PANEL,
-             0, 20);
-  ui.set_size(ID_BAR_VALUE, 200, 20);
-  // ui.set_style(ID_BAR_VALUE, &panel_bg);
+	//CALENDAR
+	ui.add_calendar(ID_TAB3, ID_CALENDAR, ui_handler, LV_ALIGN_OUT_RIGHT_TOP, ID_CB_SCREENSAVER, 100, 5);
+	ui.set_value(ID_CALENDAR, TODAY_DATE);
+	ui.set_value(ID_CALENDAR, HIGHLIGHT_DATES, 29, 11, 2019);
+	ui.set_value(ID_CALENDAR, HIGHLIGHT_DATES, 2, 12, 2019);
 
-  // CALENDAR
-  ui.add_calendar(ID_TAB3, ID_CALENDAR, ui_handler, LV_ALIGN_OUT_RIGHT_TOP,
-                  ID_CB_SCREENSAVER, 100, 5);
-  //	ui.set_value(ID_CALENDAR, 4, TODAY_DATE, 14, 11, 2019);
-  uint16_t party[] = {18, 11, 2019};
-  uint16_t church[] = {21, 11, 2019};
-  uint16_t kingsday[] = {22, 11, 2019};
-  //	ui.set_value(ID_CALENDAR, 4, HIGHLIGHT_DATES, party, church, kingsday);
-  ui.add_label(ID_TAB3, ID_LABEL_DATE, "date label", LV_ALIGN_OUT_BOTTOM_LEFT,
-               ID_CALENDAR, 10, 10);
+	//	uint16_t party[] = { 18,11,2019 };	uint16_t church[] = { 21,11,2019 };	uint16_t kingsday[] = { 22,11,2019 };
+//	ui.set_value(ID_CALENDAR, 4, HIGHLIGHT_DATES, party, church, kingsday);
+	ui.add_label(ID_TAB3, ID_LABEL_DATE, "date label", LV_ALIGN_OUT_BOTTOM_LEFT, ID_CALENDAR, 10, 10);
 
-  // //SPINBOX
-  // //ui_spinbox_specs* spinbox_def = new ui_spinbox_specs(3, 1, 2, 0, 100, 0,
-  // 1); // digit_count, fract, left_padding,min,max,value,step
-  // //ui.add_spinbox(ID_TAB3, ID_SPINBOX, spinbox_def, ui_handler,
-  // LV_ALIGN_OUT_BOTTOM_LEFT, ID_BAR_VALUE, 0, 20);
+	//SPINBOX
+	// ui_spinbox_specs* spinbox_def = new ui_spinbox_specs(3, 1, 2, 0, 100, 0, 1); // digit_count, fract, left_padding,min,max,value,step
+	// ui.add_spinbox(ID_TAB3, ID_SPINBOX, spinbox_def, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_BAR_VALUE, 0, 20);
 
-  ui.add_textarea(ID_TAB4, ID_TEXTAREA_INPUT, UI_KEYB_NUM, false, false,
-                  ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB4, 0, 0);
-  ui.set_size(ID_TEXTAREA_INPUT, ID_TAB4);
+	ui.add_textarea(ID_TAB4, ID_TEXTAREA_INPUT, UI_KEYB_NUM, false, false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB4, 0, 0);
+	ui.set_size(ID_TEXTAREA_INPUT, ID_TAB4);
+
 }
 
 void setup_theme() {
@@ -520,7 +486,7 @@ void setup() {
   esp_register_freertos_tick_hook(lv_tick_task);
 
   setup_theme();
-  ui_create();
+  create_gui();
   setup_ui_update_objects();
 
   lv_task_t *task = lv_task_create(update_ui, 50, LV_TASK_PRIO_MID, nullptr);
