@@ -61,7 +61,7 @@ typedef int (*update_cb_t)(uint32_t);
  *  STATIC VARIABLES
  **********************/
 
-// static lv_indev_t* kb_indev;
+static std::string device_name = "controlpanel";
 
 static UI ui;
 
@@ -94,18 +94,18 @@ static ui_tab_item_t tabview_items[] = {
 };
 static const int NUM_TAB_ITEMS = 5;
 
-static mqtt_ui_object_t ui_subscriber_list[] = {
-    {ID_LED_BACKLIGHT, "led/light"},
-    {ID_SWITCH_LEDS, "tft/switch"},
-};
-static const int NUM_SUBSCRIBERS = 2;
+// static mqtt_ui_object_t ui_subscriber_list[] = {
+//     {ID_LED_BACKLIGHT, "led/light"},
+//     {ID_SWITCH_LEDS, "tft/switch"},
+// };
+// static const int NUM_SUBSCRIBERS = 2;
 
-static mqtt_ui_object_t ui_publisher_list[] = {{ID_SLIDER_LEDS, "slider/leds"},
-                                               {ID_SWITCH_LEDS, "switch/leds"},
-                                               {ID_SWITCH_GANG, "switch/gang"},
-											   {ID_CB_BACKLIGHT, "ceckbox/backlight"},
-											   {ID_CB_SCREENSAVER, "checkbox/screensaver"}};
-static const int NUM_PUBLISHERS = 5;
+// static mqtt_ui_object_t ui_publisher_list[] = {{ID_SLIDER_LEDS, "slider/leds"},
+//                                                {ID_SWITCH_LEDS, "switch/leds"},
+//                                                {ID_SWITCH_GANG, "switch/gang"},
+// 											   {ID_CB_BACKLIGHT, "ceckbox/backlight"},
+// 											   {ID_CB_SCREENSAVER, "checkbox/screensaver"}};
+// static const int NUM_PUBLISHERS = 5;
 
 static ui_dropdown_specs *dropdown_spec = new ui_dropdown_specs({"Apple\n"
                                                                  "Banana\n"
@@ -119,7 +119,7 @@ static ui_roller_specs *roller_specs =
                          "ust\nSeptember\nOctober\nNovember\nDecember"},
                         5, true);
 
-std::vector<ui_object_t *> ui_time_objects;
+std::vector<UI_Object_C *> ui_time_objects;
 
 /**********************
  *      EVENT HANDLERS
@@ -142,19 +142,30 @@ void mqtt_cb(const std::string& topic, const std::string& payload) {
 	// }
 }
 
-const char* get_ui_publisher_topic(ui_object_id id) {
-  for (int i = 0; i < NUM_PUBLISHERS; i++) {
-    if (ui_publisher_list[i].id == id) {
-      return ui_publisher_list[i].topic;
-    }
-  }
-  return nullptr;
-}
 #endif
 
-void ui_handler(ui_object_t* ui_object, ui_event_t event) {
-	auto value = ui.get_value(ui_object);
-	switch (ui_object->id) {
+bool publish(UI_Object_C* ui_obj) {
+	auto value = ui.get_value(ui_obj);
+	if (ui_obj->has_name()) {
+		std::string topic = device_name + "/" + ui.get_type_name(ui_obj->id) + "/" + ui_obj->name + "/state";
+		mqtt_publish(topic, value.char_value);
+		return true;
+	}
+	return false;
+}
+
+bool publish(ui_object_id id) {
+	UI_Object_C* ui_obj = ui.find_object_by_id(id);
+	if (ui_obj != nullptr)
+		return publish(ui_obj);
+	return false;
+}
+
+void ui_handler(UI_Object_C* ui_obj, ui_event_t event) {
+	auto value = ui.get_value(ui_obj);
+  	if (event == ui_event_t::VALUE_CHANGED || event == ui_event_t::APPLY)
+		publish(ui_obj);
+	switch (ui_obj->id) {
 	case ID_CB_BACKLIGHT:
 		ui.set_value(ID_LED_BACKLIGHT, &value);
 	case ID_CB_SCREENSAVER:
@@ -162,19 +173,8 @@ void ui_handler(ui_object_t* ui_object, ui_event_t event) {
 	case ID_SLIDER_LEDS:
 		ui.set_value(ID_BAR_VALUE, &value);
 	case ID_SWITCH_LEDS:
-	case ID_SWITCH_GANG: {
-		// std::string topic(get_ui_publisher_topic(ui_object->id));
-		// std::string payload = value.get_string();
-		// 
-		// mqtt_publish(topic, payload);
-		const char* topic = get_ui_publisher_topic(ui_object->id);
-		if(topic == nullptr)
-			break;
-		printf("topic %s\n",topic);
-		mqtt_publish(topic, value.char_value);
-		ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
+	case ID_SWITCH_GANG:
 		break;
-	}
 	case ID_BUTTON_CLEAR: {
 		ui.set_value(ID_TERMINAL, "");
 		break;
@@ -203,11 +203,9 @@ void ui_handler(ui_object_t* ui_object, ui_event_t event) {
 		}
 		break;
 	}
-	case ID_TEXTAREA_INPUT: {
-		if (event == ui_event_t::CLICKED) {
-			printf("klicked TA");
-		}
-		if (event == ui_event_t::VALUE_CHANGED) {
+	case ID_TEXTAREA_INPUT:
+	case ID_TEXTFIELD_SEARCH: {
+		if (event == ui_event_t::APPLY) {
 			ui.label_add_text(ID_TERMINAL, value.char_value, TERMINAL_LOG_LENGTH);
 		}
 		break;
@@ -218,68 +216,62 @@ void ui_handler(ui_object_t* ui_object, ui_event_t event) {
 /*
 
 */
-void list_handler(ui_object_t *ui_object, ui_event_t event) {
-  if (event == ui_event_t::CLICKED) {
-    // First list items
-    ui_list_item_t *item =
-        ui.object_id_in_list(list_items, NUM_LIST_ITEMS, ui_object);
-    if (!item)
-      item = ui.object_id_in_list(list_items2, NUM_LIST_ITEMS2, ui_object);
-    if (item) {
-		if(ui_object->parent_id == ID_LIST_SYMBOLS)
-			mqtt_publish("list/selection", item->label);
-      ui.label_add_text(ID_TERMINAL, item->label, TERMINAL_LOG_LENGTH);
-      switch (item->id) {
-      case ID_LIST_SYMBOLS_AUDIO:
-        ui.toggle_value(ID_LED_EXTRA2);
-        break;
-      case ID_LIST_SYMBOLS_FILE:
-        ui.toggle_value(ID_LED_EXTRA3);
-        break;
-      case ID_LIST_SYMBOLS_BT:
-        ui.toggle_value(ID_LED_EXTRA4);
-        break;
-      case ID_LIST_SYMBOLS_WIFI:
-        ui.toggle_value(ID_LED_EXTRA5);
-        break;
-      case ID_LIST2_SYMBOLS_FILE:
-        ui.toggle_value(ID_LED_EXTRA4);
-        break;
-      }
-    }
-  }
+void list_handler(UI_Object_C* ui_obj, ui_event_t event) {
+	if (event == ui_event_t::CLICKED) {
+		// First list items
+		ui_list_item_t* item =
+			ui.object_id_in_list(list_items, NUM_LIST_ITEMS, ui_obj);
+		if (!item)
+			item = ui.object_id_in_list(list_items2, NUM_LIST_ITEMS2, ui_obj);
+		if (item) {
+			publish(ui_obj->id);
+			ui.label_add_text(ID_TERMINAL, item->label, TERMINAL_LOG_LENGTH);
+			switch (item->id) {
+			case ID_LIST_SYMBOLS_AUDIO:
+				ui.toggle_value(ID_LED_EXTRA2);
+				break;
+			case ID_LIST_SYMBOLS_FILE:
+				ui.toggle_value(ID_LED_EXTRA3);
+				break;
+			case ID_LIST_SYMBOLS_BT:
+				ui.toggle_value(ID_LED_EXTRA4);
+				break;
+			case ID_LIST_SYMBOLS_WIFI:
+				ui.toggle_value(ID_LED_EXTRA5);
+				break;
+			case ID_LIST2_SYMBOLS_FILE:
+				ui.toggle_value(ID_LED_EXTRA4);
+				break;
+			}
+		}
+	}
 }
 
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
 
-void add_led_panel(ui_object_id parent, ui_object_id panel_id,
-                   ui_object_id base_alaign) {
-  // LED PANEL
-  ui.add_container(parent, panel_id, LV_ALIGN_OUT_BOTTOM_LEFT, base_alaign, 10,
-                   10, 140, 40);
-  ui.set_style(panel_id, &panel_bg);
+void add_led_panel(ui_object_id parent, ui_object_id panel_id, ui_object_id base_alaign) {
+	//LED PANEL
+	ui.add_container(parent, panel_id, LV_ALIGN_OUT_BOTTOM_LEFT, base_alaign, 10, 10, 140, 40);
+	ui.set_style(panel_id, &panel_bg);
 
-  ui.add_led(panel_id, ID_LED_SCREENSAVER, false, LV_ALIGN_IN_TOP_LEFT,
-             panel_id, 10, 10);
-  ui.set_style(ID_LED_SCREENSAVER, &green_led);
-  ui.set_size(ID_LED_SCREENSAVER, 20, 20);
-  ui.add_led(panel_id, ID_LED_BACKLIGHT, false, LV_ALIGN_OUT_RIGHT_TOP,
-             ID_LED_SCREENSAVER, 10, 0);
-  ui.set_style(ID_LED_BACKLIGHT, &red_led);
-  ui.set_size(ID_LED_BACKLIGHT, ID_LED_SCREENSAVER);
-  ui.add_led(panel_id, ID_LED_MQTT, false, LV_ALIGN_OUT_RIGHT_TOP,
-             ID_LED_BACKLIGHT, 10, 0);
-  ui.set_style(ID_LED_MQTT, &blue_led);
-  ui.set_size(ID_LED_MQTT, ID_LED_SCREENSAVER);
-  ui.add_led(panel_id, ID_LED_EXTRA1, false, LV_ALIGN_OUT_RIGHT_TOP,
-             ID_LED_MQTT, 10, 0);
-  ui.set_style(ID_LED_EXTRA1, &yellow_led);
-  ui.set_size(ID_LED_EXTRA1, ID_LED_SCREENSAVER);
+	ui.add_led(panel_id, ID_LED_SCREENSAVER, "led_screensaver", false, LV_ALIGN_IN_TOP_LEFT, panel_id, 10, 10);
+	ui.set_style(ID_LED_SCREENSAVER, &green_led);
+	ui.set_size(ID_LED_SCREENSAVER, 20, 20);
+	ui.add_led(panel_id, ID_LED_BACKLIGHT, "led_baclight", false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_SCREENSAVER, 10, 0);
+	ui.set_style(ID_LED_BACKLIGHT, &red_led);
+	ui.set_size(ID_LED_BACKLIGHT, ID_LED_SCREENSAVER);
+	ui.add_led(panel_id, ID_LED_MQTT, "led_mqtt", false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_BACKLIGHT, 10, 0);
+	ui.set_style(ID_LED_MQTT, &blue_led);
+	ui.set_size(ID_LED_MQTT, ID_LED_SCREENSAVER);
+	ui.add_led(panel_id, ID_LED_EXTRA1, "led_extra1", false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_MQTT, 10, 0);
+	ui.set_style(ID_LED_EXTRA1, &yellow_led);
+	ui.set_size(ID_LED_EXTRA1, ID_LED_SCREENSAVER);
 }
 
-static const char *TAG_MAIN = "MAIN";
+
+//static const char *TAG_MAIN = "MAIN";
 
 static void IRAM_ATTR lv_tick_task(void) { lv_tick_inc(portTICK_RATE_MS); }
 
@@ -287,75 +279,73 @@ void create_gui() {
 	ui.add_tabview(ID_NONE, ID_TAB_VIEW, tabview_items, NUM_TAB_ITEMS, LV_HOR_RES, LV_VER_RES);
 
 	ui.add_label(ID_TAB1, ID_LABEL_LEDS, "leds achter de bank", LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 5, 10);
-	ui.add_switch(ID_TAB1, ID_SWITCH_LEDS, false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 150, 5);
+	ui.add_switch(ID_TAB1, ID_SWITCH_LEDS, "leds", false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 150, 5);
 	ui.add_label(ID_TAB1, ID_LABEL_GANG, "kleur in gang", LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 5, 45);
-	ui.add_switch(ID_TAB1, ID_SWITCH_GANG, false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 150, 40);
-	ui.add_slider(ID_TAB1, ID_SLIDER_LEDS, 0, ui_handler, LV_ALIGN_OUT_RIGHT_MID, ID_SWITCH_LEDS, 20, 0);
+	ui.add_switch(ID_TAB1, ID_SWITCH_GANG, "gang", false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB1, 150, 40);
+	ui.add_slider(ID_TAB1, ID_SLIDER_LEDS, "ledvalue", 0, ui_handler, LV_ALIGN_OUT_RIGHT_MID, ID_SWITCH_LEDS, 20, 0);
 	ui.add_label(ID_TAB1, ID_LABEL_TIME, "10:00", LV_ALIGN_OUT_BOTTOM_LEFT, ID_SLIDER_LEDS, 5, 10);
 
-	ui.add_roller(ID_TAB1, ID_ROLLER, roller_specs, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_SWITCH_GANG, 0, 60);
-	ui.add_dropdown(ID_TAB1, ID_DROPDOWN, dropdown_spec, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_SWITCH_GANG, 0, 10);
+	ui.add_roller(ID_TAB1, ID_ROLLER, "roller", roller_specs, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_SWITCH_GANG, 0, 60);
+	ui.add_dropdown(ID_TAB1, ID_DROPDOWN, "dropdown", dropdown_spec, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_SWITCH_GANG, 0, 10);
 	ui.set_size(ID_DROPDOWN, 130, 0);
 	ui.set_size(ID_ROLLER, ID_DROPDOWN);
 
-	ui.add_list(ID_TAB2, ID_LIST_SYMBOLS, list_items, NUM_LIST_ITEMS, list_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB2, 5, 5);
+	ui.add_list(ID_TAB2, ID_LIST_SYMBOLS, "list1_", list_items, NUM_LIST_ITEMS, list_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB2, 5, 5);
 	ui.set_size(ID_LIST_SYMBOLS, 150, 200);
-	ui.add_list(ID_TAB2, ID_LIST2_SYMBOLS2, list_items2, NUM_LIST_ITEMS2, list_handler, LV_ALIGN_OUT_RIGHT_TOP, ID_LIST_SYMBOLS, 10, 0);
+	ui.add_list(ID_TAB2, ID_LIST2_SYMBOLS2, "list2_", list_items2, NUM_LIST_ITEMS2, list_handler, LV_ALIGN_OUT_RIGHT_TOP, ID_LIST_SYMBOLS, 10, 0);
 	ui.set_size(ID_LIST2_SYMBOLS2, 150, 270);
-	ui.add_led(ID_TAB2, ID_LED_EXTRA2, false, LV_ALIGN_OUT_BOTTOM_LEFT, ID_LIST_SYMBOLS, 10, 10);
+	ui.add_led(ID_TAB2, ID_LED_EXTRA2, "led_extra2", false, LV_ALIGN_OUT_BOTTOM_LEFT, ID_LIST_SYMBOLS, 10, 10);
 	ui.set_size(ID_LED_EXTRA2, 20, 20);
-	ui.add_led(ID_TAB2, ID_LED_EXTRA3, false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA2, 20, 0);
+	ui.add_led(ID_TAB2, ID_LED_EXTRA3, "led_extra3", false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA2, 20, 0);
 	ui.set_size(ID_LED_EXTRA3, ID_LED_EXTRA2);
 	ui.set_style(ID_LED_EXTRA3, &yellow_led);
-	ui.add_led(ID_TAB2, ID_LED_EXTRA4, false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA3, 20, 0);
+	ui.add_led(ID_TAB2, ID_LED_EXTRA4, "led_extra4", false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA3, 20, 0);
 	ui.set_size(ID_LED_EXTRA4, ID_LED_EXTRA2);
 	ui.set_style(ID_LED_EXTRA4, &blue_led);
 
-	ui.add_led(ID_TAB2, ID_LED_EXTRA5, false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA4, 20, 0);
+	ui.add_led(ID_TAB2, ID_LED_EXTRA5, "led_extra5", false, LV_ALIGN_OUT_RIGHT_TOP, ID_LED_EXTRA4, 20, 0);
 	ui.set_size(ID_LED_EXTRA5, ID_LED_EXTRA2);
 	ui.set_style(ID_LED_EXTRA5, &green_led);
 
 	ui.add_label(ID_TAB_TERMINAL, ID_TERMINAL, "BYE");
 	ui.set_style(ID_TERMINAL, &style_terminal, 0);
-	ui.add_button(ID_TAB_TERMINAL, ID_BUTTON_CLEAR, ID_BUTTON_CLEAR_LABEL, "Clear", ui_handler, LV_ALIGN_IN_BOTTOM_RIGHT, ID_TAB_TERMINAL, -10, 10);
+	ui.add_button(ID_TAB_TERMINAL, ID_BUTTON_CLEAR, ID_BUTTON_CLEAR_LABEL, "Clear", "clearbutton", ui_handler, LV_ALIGN_IN_BOTTOM_RIGHT, ID_TAB_TERMINAL, -10, 10);
 	ui.set_floating(ID_BUTTON_CLEAR, ID_TAB_TERMINAL);
 	ui.set_size(ID_BUTTON_CLEAR, 100, 40);
-	ui.add_textarea(ID_TAB_TERMINAL, ID_TEXTFIELD_SEARCH, UI_KEYB_TEXT, true, false, ui_handler, LV_ALIGN_IN_TOP_RIGHT, ID_TAB_TERMINAL, 0, 0);
+	ui.add_textarea(ID_TAB_TERMINAL, ID_TEXTFIELD_SEARCH, "search", UI_KEYB_TEXT, true, false, ui_handler, LV_ALIGN_IN_TOP_RIGHT, ID_TAB_TERMINAL, 0, 0);
 	ui.set_floating(ID_TEXTFIELD_SEARCH, ID_TAB_TERMINAL);
 
-	ui.add_checkbox(ID_TAB3, ID_CB_SCREENSAVER, "Screensaver", false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB3, 5, 10);
-	ui.add_checkbox(ID_TAB3, ID_CB_BACKLIGHT, "Backlight", false, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_CB_SCREENSAVER, 0, 0);
+	ui.add_checkbox(ID_TAB3, ID_CB_SCREENSAVER, "Screensaver", "screensaver", false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB3, 5, 10);
+	ui.add_checkbox(ID_TAB3, ID_CB_BACKLIGHT, "Backlight", "backlight", false, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_CB_SCREENSAVER, 0, 0);
 
 	add_led_panel(ID_TAB3, ID_LED_PANEL, ID_CB_BACKLIGHT);
 
-	ui.add_bar(ID_TAB3, ID_BAR_VALUE, 0, LV_ALIGN_OUT_BOTTOM_LEFT, ID_LED_PANEL, 0, 20);
+	ui.add_bar(ID_TAB3, ID_BAR_VALUE, "bar", 0, LV_ALIGN_OUT_BOTTOM_LEFT, ID_LED_PANEL, 0, 20);
 	ui.set_size(ID_BAR_VALUE, 200, 20);
 	//ui.set_style(ID_BAR_VALUE, &panel_bg);
 
 	//CALENDAR
-	ui.add_calendar(ID_TAB3, ID_CALENDAR, ui_handler, LV_ALIGN_OUT_RIGHT_TOP, ID_CB_SCREENSAVER, 100, 5);
-	ui.set_value(ID_CALENDAR, TODAY_DATE);
-	ui.set_value(ID_CALENDAR, HIGHLIGHT_DATES, 29, 11, 2019);
-	ui.set_value(ID_CALENDAR, HIGHLIGHT_DATES, 2, 12, 2019);
+	//ui.add_calendar(ID_TAB3, ID_CALENDAR, "calendar", ui_handler, LV_ALIGN_OUT_RIGHT_TOP, ID_CB_SCREENSAVER, 100, 5);
+	//ui.set_value(ID_CALENDAR, TODAY_DATE);
+	//ui.set_value(ID_CALENDAR, HIGHLIGHT_DATES, 29, 11, 2019);
+	//ui.set_value(ID_CALENDAR, HIGHLIGHT_DATES, 2, 12, 2019);
 
 	//	uint16_t party[] = { 18,11,2019 };	uint16_t church[] = { 21,11,2019 };	uint16_t kingsday[] = { 22,11,2019 };
 //	ui.set_value(ID_CALENDAR, 4, HIGHLIGHT_DATES, party, church, kingsday);
 	ui.add_label(ID_TAB3, ID_LABEL_DATE, "date label", LV_ALIGN_OUT_BOTTOM_LEFT, ID_CALENDAR, 10, 10);
 
 	//SPINBOX
-	// ui_spinbox_specs* spinbox_def = new ui_spinbox_specs(3, 1, 2, 0, 100, 0, 1); // digit_count, fract, left_padding,min,max,value,step
-	// ui.add_spinbox(ID_TAB3, ID_SPINBOX, spinbox_def, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_BAR_VALUE, 0, 20);
+	ui_spinbox_specs* spinbox_def = new ui_spinbox_specs(3, 1, 2, 0, 100, 0, 1); // digit_count, fract, left_padding,min,max,value,step
+	ui.add_spinbox(ID_TAB3, ID_SPINBOX, "spinbox", spinbox_def, ui_handler, LV_ALIGN_OUT_BOTTOM_LEFT, ID_BAR_VALUE, 0, 20);
 
-	ui.add_textarea(ID_TAB4, ID_TEXTAREA_INPUT, UI_KEYB_NUM, false, false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB4, 0, 0);
+	ui.add_textarea(ID_TAB4, ID_TEXTAREA_INPUT, "input", UI_KEYB_TEXT, false, false, ui_handler, LV_ALIGN_IN_TOP_LEFT, ID_TAB4, 0, 0);
 	ui.set_size(ID_TEXTAREA_INPUT, ID_TAB4);
 
 }
 
 void setup_theme() {
 
-  lv_theme_t *th = ui_theme_init(
-      138,
-      &lv_font_roboto_16); // Set a HUE value and a Font for the Night Theme
+  lv_theme_t *th = ui_theme_init( 138, &lv_font_roboto_16); // Set a HUE value and a Font for the Night Theme
 
   static lv_style_t style_tv_btn_bg;
   lv_style_copy(&style_tv_btn_bg, th->style.tabview.btn.bg);
@@ -426,7 +416,9 @@ void setup_theme() {
   lv_theme_set_current(th);
 }
 
-void update_ui(lv_task_t *task) { ui.do_update_objects(task); }
+void update_ui(lv_task_t *task) { 
+  ui.do_update_objects(task);
+}
 
 void setup_ui_update_objects() {
   ui.add_update_object(ID_LABEL_TIME, 200);
@@ -495,11 +487,10 @@ void setup() {
 void loop() {
   vTaskDelay(1);
 #ifdef USE_MQTT
-  //   if (!wifi_is_connected()) {
-  //      ui.label_add_text(ID_TERMINAL, "Wifi
-  //      disconnected\n",TERMINAL_LOG_LENGTH);
-  //   }
-  // mqtt_loop();
+    if (!wifi_is_connected()) {
+       ui.label_add_text(ID_TERMINAL, "Wifi disconnected\n",TERMINAL_LOG_LENGTH);
+    }
+  mqtt_loop();
 #endif
   lv_task_handler();
 }

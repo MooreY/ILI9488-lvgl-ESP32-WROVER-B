@@ -32,6 +32,7 @@ enum class ui_event_t {
 	PRESSED,
 	RELEASED,
 	PRESSED_REPEAT,
+	APPLY,
 };
 
 enum calendar_value_type {
@@ -49,6 +50,8 @@ class ui_keyboard_data {
 public:
 	ui_keyboard_type type;
 };
+
+//typedef enum ui_object_id;
 
 typedef struct {
 	ui_object_id id;
@@ -68,17 +71,38 @@ typedef struct {
 
 typedef int (*update_cb_t) (uint32_t);
 
-typedef struct ui_object_t ui_object_t;
-typedef void (*ui_object_handler_cb_ptr)(ui_object_t*, ui_event_t);
+typedef struct UI_Object_C ui_object_t;
+typedef void (*ui_object_handler_cb_ptr)(UI_Object_C*, ui_event_t);
 
-class ui_object_t {
+class UI_Object_C {
 public:
 	ui_object_id id;
+	const char* name = nullptr;
 	ui_object_id parent_id;
 	ui_object_type type;
 	lv_obj_t* lv_obj;
 	ui_object_handler_cb_ptr ui_callback;
-	void* object_data;
+	void* object_data = nullptr;
+
+	bool has_name() {
+		return name != nullptr;
+	}
+
+	virtual std::string get_type_name() {
+		return "none";
+	};
+};
+
+
+class lv_obj_data_c {
+public:
+	lv_obj_data_c(ui_object_id id, ui_object_type type) {
+		this->id = id;
+		this->type = type;
+	}
+	ui_object_id id;
+	ui_object_type type;
+	char* name;
 };
 
 static const char* VALUE_ON = "ON";
@@ -123,8 +147,8 @@ public:
 
 class ui_textarea_data {
 public:
-	ui_object_t* ui_textarea;
-	ui_object_t* ui_keyboard;
+	UI_Object_C* ui_textarea;
+	UI_Object_C* ui_keyboard;
 	bool show_kb_on_click = true;
 	bool hide_kb_on_done = true;
 	void set_text_area(ui_object_t* ta) {
@@ -161,7 +185,7 @@ public:
 	int step;
 	int fract;
 
-	void apply_specs(ui_object_t* ui_obj_spinner) {
+	void apply_specs(UI_Object_C* ui_obj_spinner) {
 		ui_obj_spinner->object_data = this;
 		lv_spinbox_set_digit_format(ui_obj_spinner->lv_obj, digit_count, seperator_pos);
 		lv_spinbox_set_padding_left(ui_obj_spinner->lv_obj, left_number_padding);
@@ -172,7 +196,7 @@ public:
 
 class ui_update_object_c {
 public:
-	ui_update_object_c(ui_object_t* ui_obj, uint32_t ms_time) {
+	ui_update_object_c(UI_Object_C* ui_obj, uint32_t ms_time) {
 		this->ui_obj = ui_obj;
 		this->ms_time = ms_time;
 	}
@@ -187,34 +211,52 @@ public:
 
 	uint32_t ms_time;
 	unsigned long  last_time;
-	ui_object_t* ui_obj;
+	UI_Object_C* ui_obj;
 };
 
 class ui_object_value {
+private:
+	const char* char_none = "None";
 public:
-	int int_value = 0;
-	float float_value = 0.0;
-	const char* char_value = new char[10];
-	double double_value = 0;
-	bool bool_value = false;
-	tm* date_time = new tm();
+	ui_object_value() {	};
+
+	ui_object_value(lv_obj_t* lv_obj) {	
+		lv_obj_data_c* data = (lv_obj_data_c*)lv_obj_get_user_data(lv_obj);
+		switch (data->type) {
+		case ui_object_type::CALENDAR: {
+			lv_calendar_date_t* lv_date = lv_calendar_get_pressed_date(lv_obj);
+			set_date(lv_date->day, lv_date->month, lv_date->year - 1900);
+			break;
+		}
+		case ui_object_type::SWITCH: {
+			set_value(lv_sw_get_state(lv_obj));
+			break;
+		}
+		default:
+			set_value(char_none);
+			break;
+		}
+	};
 
 	static const int buff_size = 120;
+	int int_value = 0;
+	float float_value = 0.0;
+	char* char_value = new char[buff_size];
+	double double_value = 0;
+	bool bool_value = false;
+	//tm* date_time = new tm();
+
 
 	void set_value(char* string) {
-		const char* tmp = char_value;
-		char* buffer = new char[buff_size];
-		strcpy(buffer, string);
-		char_value = buffer;
-		delete(tmp);
+		strcpy(char_value, string);
 	}
 
 	void set_value(bool value) {
 		bool_value = value;
 		if (value)
-			char_value = VALUE_ON;
+			strcpy(char_value, VALUE_ON);
 		else
-			char_value = VALUE_OFF;
+			strcpy(char_value, VALUE_OFF);
 	}
 
 	void set_value(int value) {
@@ -224,42 +266,49 @@ public:
 	}
 
 	void set_date(int day, int month, int year) {
-		date_time->tm_mday = day;
-		date_time->tm_mon = month;
-		date_time->tm_year = year - 1900;
-		set_date_str();
+		//char* buffer = new char[buff_size];
+		tm date_time;
+		date_time.tm_mday = day;
+		date_time.tm_mon = month;
+		date_time.tm_year = year;
+		strftime(char_value, buff_size, "%d %B %Y", &date_time);
+		//strcpy(char_value, buffer);
+		//delete(buffer);
 	}
 
-	void set_time(int h, int m, int s) {
-		date_time->tm_hour = h;
-		date_time->tm_min = m;
-		date_time->tm_sec = s;
-		set_time_str();
-	}
+	//void set_date(int day, int month, int year) {
+	//	//date_time->tm_mday = day;
+	//	//date_time->tm_mon = month;
+	//	//date_time->tm_year = year - 1900;
+	//	set_date_str(day,month,year - 1900);
+	//}
 
-	void set_date_str() {
-		const char* tmp = char_value;
+	//void set_time(int h, int m, int s) {
+	//	date_time->tm_hour = h;
+	//	date_time->tm_min = m;
+	//	date_time->tm_sec = s;
+	//	set_time_str();
+	//}
+
+
+
+	void set_time_str(int h, int m, int s) {
 		char* buffer = new char[buff_size];
-		strftime(buffer, buff_size, "%d %B %Y", date_time);
-		char_value = buffer;
-		delete(tmp);
+		tm date_time;
+		date_time.tm_hour = h;
+		date_time.tm_min = m;
+		date_time.tm_sec = s;
+		strftime(buffer, buff_size, "%h:%m:%s", &date_time);
+		strcpy(char_value, buffer);
+		delete(buffer);
 	}
 
-	void set_time_str() {
-		const char* tmp = char_value;
-		char* buffer = new char[buff_size];
-		strftime(buffer, buff_size, "%h:%m:%s", date_time);
-		char_value = (const char*)buffer;
-		delete(tmp);
-	}
-
-	void set_date_time_str() {
-		const char* tmp = char_value;
-		char* buffer = new char[buff_size];
-		strftime(buffer, buff_size, "%h:%m:%s %d %B %Y", date_time);
-		char_value = (const char*)buffer;
-		delete(tmp);
-	}
+	//void set_date_time_str() {
+	//	char* buffer = new char[buff_size];
+	//	strftime(buffer, buff_size, "%h:%m:%s %d %B %Y", date_time);
+	//	strcpy(char_value, buffer);
+	//	//delete(buffer);
+	//}
 
 	std::string* get_string() {
 		return new std::string(char_value);

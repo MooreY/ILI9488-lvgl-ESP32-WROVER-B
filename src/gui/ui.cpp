@@ -1,5 +1,3 @@
-#pragma once
-
 #include <lvgl/lvgl.h>
 #include <vector>
 #include <functional>
@@ -10,7 +8,7 @@
 #include "ui.h"
 //#include "arduino/time_c.h"
 
-std::vector<ui_object_t*> UI::ui_object_list_;
+std::vector<UI_Object_C*> UI::ui_object_list_;
 std::vector<ui_update_object_c*> UI::ui_update_object_list_;
 
 UI::UI() {
@@ -18,12 +16,13 @@ UI::UI() {
 	//lv_theme_set_current(th);                                           //Apply the theme
 }
 
-ui_object_t* UI::add_object(lv_obj_t* object, ui_object_id id, ui_object_id parent_id, ui_object_type object_type, ui_object_handler_cb_ptr callback) {
+UI_Object_C* UI::add_object(lv_obj_t* object, ui_object_id id, ui_object_id parent_id, ui_object_type object_type, ui_object_handler_cb_ptr callback, const char* name) {
 	if (id > 0 && object != nullptr) {
-		ui_object_t* ui_obj = new ui_object_t;
+		UI_Object_C* ui_obj = new UI_Object_C;
 		ui_obj->id = id;
 		ui_obj->parent_id = parent_id;
 		ui_obj->type = object_type;
+		ui_obj->name = name;
 		ui_obj->lv_obj = object;
 		ui_obj->ui_callback = callback;
 		UI::ui_object_list_.push_back(ui_obj);
@@ -46,7 +45,7 @@ ui_object_t* UI::add_object(lv_obj_t* object, ui_object_id id, ui_object_id pare
 // 	return false;
 // }
 
-ui_list_item_t* UI::object_id_in_list(ui_list_item_t* list, uint16_t num_items, ui_object_t* ui_object) {
+ui_list_item_t* UI::object_id_in_list(ui_list_item_t* list, uint16_t num_items, UI_Object_C* ui_object) {
 	for (int i = 0; i < num_items; i++) {
 		if (list[i].id == ui_object->id) {
 			return &list[i];
@@ -55,7 +54,7 @@ ui_list_item_t* UI::object_id_in_list(ui_list_item_t* list, uint16_t num_items, 
 	return nullptr;
 }
 
-ui_object_t* UI::add_page(ui_object_id parent_id, ui_object_id id, uint32_t width, uint32_t height) {
+UI_Object_C* UI::add_page(ui_object_id parent_id, ui_object_id id, uint32_t width, uint32_t height) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 
 	lv_obj_t* lv_obj = lv_page_create(lv_parent, NULL);
@@ -68,7 +67,7 @@ ui_object_t* UI::add_page(ui_object_id parent_id, ui_object_id id, uint32_t widt
 	return add_object(lv_obj, id, parent_id, ui_object_type::PAGE);
 }
 
-ui_object_t* UI::add_tabview(ui_object_id parent_id, ui_object_id id, ui_tab_item_t* tabs, uint32_t num_tabs, uint32_t width, uint32_t height) {
+UI_Object_C* UI::add_tabview(ui_object_id parent_id, ui_object_id id, ui_tab_item_t* tabs, uint32_t num_tabs, uint32_t width, uint32_t height) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 
 	lv_obj_t* lv_obj = lv_tabview_create(lv_parent, NULL);
@@ -83,13 +82,13 @@ ui_object_t* UI::add_tabview(ui_object_id parent_id, ui_object_id id, ui_tab_ite
 	return add_object(lv_obj, id, parent_id, ui_object_type::TABVIEW);
 }
 
-ui_object_t* UI::add_tab(ui_object_id parent_id, ui_object_id id, const char* text) {
+UI_Object_C* UI::add_tab(ui_object_id parent_id, ui_object_id id, const char* text) {
 	lv_obj_t* lv_parent = find_lv_object_by_id(parent_id);
-	ui_object_t* ui_obj = add_tab(lv_parent, id, parent_id, text);
+	UI_Object_C* ui_obj = add_tab(lv_parent, id, parent_id, text);
 	return ui_obj;
 }
 
-ui_object_t* UI::add_tab(lv_obj_t* parent, ui_object_id id, ui_object_id parent_id, const char* text) {
+UI_Object_C* UI::add_tab(lv_obj_t* parent, ui_object_id id, ui_object_id parent_id, const char* text) {
 	lv_obj_t* lv_obj = nullptr;
 	if (parent != nullptr) {
 		lv_obj = lv_tabview_add_tab(parent, text);
@@ -100,7 +99,7 @@ ui_object_t* UI::add_tab(lv_obj_t* parent, ui_object_id id, ui_object_id parent_
 	return 	add_object(lv_obj, id, parent_id, ui_object_type::TAB);
 }
 
-ui_object_t* UI::add_container(ui_object_id parent_id, ui_object_id id, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset, uint32_t width, uint32_t height) {
+UI_Object_C* UI::add_container(ui_object_id parent_id, ui_object_id id, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset, uint32_t width, uint32_t height) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 
 	lv_obj_t* lv_obj = lv_cont_create(lv_parent, NULL);
@@ -119,7 +118,7 @@ ui_object_t* UI::add_container(ui_object_id parent_id, ui_object_id id, lv_align
 	return 	add_object(lv_obj, id, parent_id, ui_object_type::CONTAINER);
 }
 
-ui_object_t* UI::add_textarea(ui_object_id parent_id, ui_object_id id, ui_keyboard_type keyboard_type, bool oneline, bool pw_mode, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_textarea(ui_object_id parent_id, ui_object_id id, const char* name, ui_keyboard_type keyboard_type, bool oneline, bool pw_mode, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_ta_create(lv_parent, NULL);
 	if (align < 999) {
@@ -135,14 +134,14 @@ ui_object_t* UI::add_textarea(ui_object_id parent_id, ui_object_id id, ui_keyboa
 	else
 		lv_obj_set_event_cb(lv_obj, text_area_event_handler);
 
-	ui_object_t* ui_obj = add_object(lv_obj, id, parent_id, ui_object_type::TEXTAREA, callback);
+	UI_Object_C* ui_obj = add_object(lv_obj, id, parent_id, ui_object_type::TEXTAREA, callback, name);
 	ui_keyboard_data* kbd = new ui_keyboard_data();
 	kbd->type = keyboard_type;
 	ui_obj->object_data = kbd;
 	return ui_obj;
 }
 
-ui_object_t* UI::add_label(ui_object_id parent_id, ui_object_id id, const char* text, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_label(ui_object_id parent_id, ui_object_id id, const char* text, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_label_create(lv_parent, NULL);
 
@@ -168,14 +167,14 @@ void UI::label_add_text(ui_object_id label_id, const char* txt_in, uint32_t max_
 	uint16_t txt_len = strlen(txt_in);
 	uint16_t old_len = strlen(txt_log);
 
-	uint32_t old_offset = 0;
+	//uint32_t old_offset = 0;
 	if (txt_len > max_length) {
 		txt_len = max_length;
 		old_len = 0;
 	}
-	else if ((txt_len + old_len) > max_length) {
-		uint32_t old_end = max_length - txt_len;
-	}
+	// else if ((txt_len + old_len) > max_length) {
+	// 	uint32_t old_end = max_length - txt_len;
+	// }
 
 	//printf("label length = %d\n", old_len);
 	char* new_txt = (char*)calloc(txt_len + old_len + 1, sizeof(char));
@@ -188,7 +187,7 @@ void UI::label_add_text(ui_object_id label_id, const char* txt_in, uint32_t max_
 	lv_label_set_text(lv_obj, new_txt);
 }
 
-ui_object_t* UI::add_switch(ui_object_id parent_id, ui_object_id id, bool state, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_switch(ui_object_id parent_id, ui_object_id id, const char* name, bool state, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_sw_create(lv_parent, NULL);
 	if (align < 999) {
@@ -200,15 +199,15 @@ ui_object_t* UI::add_switch(ui_object_id parent_id, ui_object_id id, bool state,
 	else
 		lv_sw_off(lv_obj, false);
 	lv_obj_set_event_cb(lv_obj, UI::event_handler);
-	return 	add_object(lv_obj, id, parent_id, ui_object_type::SWITCH, callback);
+	return 	add_object(lv_obj, id, parent_id, ui_object_type::SWITCH, callback, name);
 }
 
-ui_object_t* UI::add_spinbox(ui_object_id parent_id, ui_object_id id, ui_spinbox_specs* object_specs, ui_object_handler_cb_ptr callback, lv_align_t align,
+UI_Object_C* UI::add_spinbox(ui_object_id parent_id, ui_object_id id, const char* name, ui_spinbox_specs* object_specs, ui_object_handler_cb_ptr callback, lv_align_t align,
 	ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_spinbox_create(lv_parent, NULL);
 
-	ui_object_t* ui_obj = add_object(lv_obj, id, parent_id, ui_object_type::SPINBOX, callback);
+	UI_Object_C* ui_obj = add_object(lv_obj, id, parent_id, ui_object_type::SPINBOX, callback, name);
 	object_specs->apply_specs(ui_obj);
 
 	//lv_spinbox_step_prev(spinbox);
@@ -223,7 +222,7 @@ ui_object_t* UI::add_spinbox(ui_object_id parent_id, ui_object_id id, ui_spinbox
 	return 	ui_obj;
 }
 
-ui_object_t* UI::add_button(ui_object_id parent_id, ui_object_id id, ui_object_id label_id, const char* label, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_button(ui_object_id parent_id, ui_object_id id, ui_object_id label_id, const char* label, const char* name, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_btn_create(parent, NULL);
 	lv_obj_t* lv_btn_label = lv_label_create(lv_obj, NULL);
@@ -236,10 +235,10 @@ ui_object_t* UI::add_button(ui_object_id parent_id, ui_object_id id, ui_object_i
 	}
 	lv_obj_set_event_cb(lv_obj, UI::event_handler);
 
-	return 	add_object(lv_obj, id, parent_id, ui_object_type::BUTTON, callback);
+	return 	add_object(lv_obj, id, parent_id, ui_object_type::BUTTON, callback, name);
 }
 
-ui_object_t* UI::add_checkbox(ui_object_id parent_id, ui_object_id id, const char* label, bool state, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_checkbox(ui_object_id parent_id, ui_object_id id, const char* label, const char* name, bool state, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_cb_create(lv_parent, NULL);
 	lv_cb_set_text(lv_obj, label);
@@ -250,10 +249,10 @@ ui_object_t* UI::add_checkbox(ui_object_id parent_id, ui_object_id id, const cha
 	}
 	lv_cb_set_checked(lv_obj, state);
 	lv_obj_set_event_cb(lv_obj, UI::event_handler);
-	return add_object(lv_obj, id, parent_id, ui_object_type::CHECKBOX, callback);
+	return add_object(lv_obj, id, parent_id, ui_object_type::CHECKBOX, callback, name);
 }
 
-ui_object_t* UI::add_led(ui_object_id parent_id, ui_object_id id, bool state, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_led(ui_object_id parent_id, ui_object_id id, const char* name, bool state, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_led_create(lv_parent, NULL);
 	if (align < 999) {
@@ -264,10 +263,10 @@ ui_object_t* UI::add_led(ui_object_id parent_id, ui_object_id id, bool state, lv
 		lv_led_on(lv_obj);
 	else
 		lv_led_off(lv_obj);
-	return add_object(lv_obj, id, parent_id, ui_object_type::LED);
+	return add_object(lv_obj, id, parent_id, ui_object_type::LED, nullptr, name);
 }
 
-ui_object_t* UI::add_bar(ui_object_id parent_id, ui_object_id id, int value, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_bar(ui_object_id parent_id, ui_object_id id, const char* name, int value, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_bar_create(lv_parent, NULL);
 	if (align < 999) {
@@ -276,10 +275,10 @@ ui_object_t* UI::add_bar(ui_object_id parent_id, ui_object_id id, int value, lv_
 	}
 
 	lv_bar_set_value(lv_obj, value, false);
-	return add_object(lv_obj, id, parent_id, ui_object_type::BAR);
+	return add_object(lv_obj, id, parent_id, ui_object_type::BAR, nullptr, name);
 }
 
-ui_object_t* UI::add_calendar(ui_object_id parent_id, ui_object_id id, ui_object_handler_cb_ptr callback, lv_align_t align,
+UI_Object_C* UI::add_calendar(ui_object_id parent_id, ui_object_id id, const char* name, ui_object_handler_cb_ptr callback, lv_align_t align,
 	ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_calendar_create(lv_parent, NULL);
@@ -291,38 +290,34 @@ ui_object_t* UI::add_calendar(ui_object_id parent_id, ui_object_id id, ui_object
 
 	lv_obj_set_event_cb(lv_obj, UI::event_handler);
 
-	return add_object(lv_obj, id, parent_id, ui_object_type::CALENDAR, callback);
+	return add_object(lv_obj, id, parent_id, ui_object_type::CALENDAR, callback, name);
 }
 
 
 void UI::event_handler(lv_obj_t* lv_obj, lv_event_t event) {
-	ui_object_t* ui_obj = find_object_by_ref(lv_obj);
+	UI_Object_C* ui_obj = find_object_by_ref(lv_obj);
 	if (ui_obj->ui_callback != nullptr)
 		switch (ui_obj->type) {
-		case ui_object_type::BUTTON:
-		case ui_object_type::SWITCH: {
-			if (event == LV_EVENT_SHORT_CLICKED)
+		case ui_object_type::BUTTON: {
+			if (event == LV_EVENT_PRESSED)
 				ui_obj->ui_callback(ui_obj, ui_event_t::CLICKED);
+			else if (event == LV_EVENT_RELEASED)
+				ui_obj->ui_callback(ui_obj, ui_event_t::RELEASED);
 			break; }
+		case ui_object_type::SWITCH: 
 		case ui_object_type::CHECKBOX:
 		case ui_object_type::CALENDAR:
-		case ui_object_type::SLIDER: {
-			if (event == LV_EVENT_VALUE_CHANGED)
-				ui_obj->ui_callback(ui_obj, ui_event_t::VALUE_CHANGED);
-			break; }
+		case ui_object_type::SLIDER:
 		case ui_object_type::DROPDOWN_LIST:
 		case ui_object_type::ROLLER:
 		case ui_object_type::LIST:
 		case ui_object_type::SPINBOX: {
 			if (event == LV_EVENT_VALUE_CHANGED)
 				ui_obj->ui_callback(ui_obj, ui_event_t::VALUE_CHANGED);
-			if (event == LV_EVENT_CLICKED)
-				ui_obj->ui_callback(ui_obj, ui_event_t::CLICKED);
+			//if (event == LV_EVENT_CLICKED)
+			//	ui_obj->ui_callback(ui_obj, ui_event_t::CLICKED);
 			break; }
 		case ui_object_type::TEXTAREA: {
-			ui_textarea_data* ui_data = (ui_textarea_data*)ui_obj->object_data;
-			if (event == LV_EVENT_VALUE_CHANGED)
-				ui_obj->ui_callback(ui_obj, ui_event_t::VALUE_CHANGED);
 			if (event == LV_EVENT_CLICKED)
 				//show the keyboard
 				ui_obj->ui_callback(ui_obj, ui_event_t::CLICKED);
@@ -334,7 +329,7 @@ void UI::text_area_event_handler(lv_obj_t* text_area, lv_event_t event) {
 	lv_obj_t* parent = nullptr;
 	/*Text area is on the scrollable part of the page but we need the page itself*/
 	uint8_t protect = lv_obj_get_protect(text_area);
-	ui_object_t* ui_ta_obj = find_object_by_ref(text_area);
+	UI_Object_C* ui_ta_obj = find_object_by_ref(text_area);
 	if (protect && LV_PROTECT_PARENT)
 		parent = lv_obj_get_parent(text_area);
 	else
@@ -416,6 +411,11 @@ void UI::keyboard_event_cb(lv_obj_t* kb, lv_event_t event)
 	if (event == LV_EVENT_APPLY) {
 		lv_obj_t* ta = lv_kb_get_ta(kb);
 		lv_ta_get_text(ta);
+		ui_object_t* ui_obj = find_object_by_ref(ta);
+		if (ui_obj != nullptr) {
+			if(ui_obj->ui_callback != nullptr)
+				ui_obj->ui_callback(ui_obj, ui_event_t::APPLY);
+		}
 	}
 }
 
@@ -447,7 +447,7 @@ void UI::set_value(ui_object_id id, char* value) {
 }
 
 void UI::set_value(ui_object_id id, calendar_value_type type, int day, int month, int year) {
-	ui_object_t* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
 	if (ui_obj == nullptr)
 		return;
 	lv_obj_t* lv_obj = ui_obj->lv_obj;
@@ -485,15 +485,22 @@ void UI::set_value(ui_object_id id, calendar_value_type type, int day, int month
 			lv_new_dates[num_dates].year = year;
 
 			lv_calendar_set_highlighted_dates(lv_obj, lv_new_dates, num_dates + 1);
-			if(lv_dates != NULL)
+			if (lv_dates != NULL)
 				delete(lv_dates);
 		}
 	}
 
 }
 
+void UI::set_name(ui_object_id id, const char* name) {
+	UI_Object_C* ui_obj = find_object_by_id(id);
+	if (ui_obj == nullptr)
+		return;
+	ui_obj->name = name;
+}
+
 void UI::set_value(ui_object_id id, ui_object_value* value) {
-	ui_object_t* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
 	if (ui_obj == nullptr)
 		return;
 	lv_obj_t* lv_obj = ui_obj->lv_obj;
@@ -559,7 +566,7 @@ void UI::set_value(ui_object_id id, ui_object_value* value) {
 }
 
 bool UI::toggle_value(ui_object_id id) {
-	ui_object_t* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
 	lv_obj_t* lv_obj = ui_obj->lv_obj;
 	bool handled = false;
 	switch (ui_obj->type) {
@@ -575,7 +582,7 @@ bool UI::toggle_value(ui_object_id id) {
 	return handled;
 }
 
-ui_object_value UI::get_value(ui_object_t* ui_object) {
+ui_object_value UI::get_value(UI_Object_C* ui_object) {
 	ui_object_value retval;
 	switch (ui_object->type) {
 	case ui_object_type::SWITCH: {
@@ -589,7 +596,8 @@ ui_object_value UI::get_value(ui_object_t* ui_object) {
 		break;
 	}
 	case ui_object_type::BUTTON: {
-		//retval.char_value = lv_btn_(ui_object->object);
+		lv_btn_state_t state =  lv_btn_get_state(ui_object->lv_obj);
+		retval.set_value(state == LV_BTN_STATE_PR);
 		break;
 	}
 	case ui_object_type::CHECKBOX: {
@@ -619,24 +627,62 @@ ui_object_value UI::get_value(ui_object_t* ui_object) {
 		lv_ddlist_get_selected_str(ui_object->lv_obj, (char*)retval.char_value, retval.buff_size);
 		break;
 	}
+	case ui_object_type::LIST: {
+		lv_obj_t* but = lv_list_get_btn_selected(ui_object->lv_obj);
+
+		if(ui_object->lv_obj != nullptr)
+			retval.set_value(lv_list_get_btn_text(but));
+		break;
+	}
+	case ui_object_type::TEXTAREA: {
+		if (ui_object->lv_obj != nullptr)
+			retval.set_value(lv_ta_get_text(ui_object->lv_obj));
+		break;
+	}
+
 	}
 	return retval;
 }
 
+std::string UI::get_type_name(ui_object_id id) {
+	UI_Object_C* ui_obj = find_object_by_id(id);
+	if (ui_obj != nullptr) {
+		switch (ui_obj->type) {
+		case ui_object_type::SWITCH:
+			return "switch";
+		case ui_object_type::SLIDER:
+			return "slider";
+		case ui_object_type::BUTTON:
+			return "button";
+		case ui_object_type::CHECKBOX:
+			return "checkbox";
+		case ui_object_type::KEYBOARD:
+			return "keyboard";
+		case ui_object_type::DROPDOWN_LIST:
+			return "dropdown";
+		case ui_object_type::LIST:
+			return "list";
+		case ui_object_type::ROLLER:
+			return "roller";
+		}
+	}
+	return "none";
+}
+
 void UI::set_size(ui_object_id id, lv_coord_t width, lv_coord_t height) {
-	ui_object_t* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
 	set_size(ui_obj, width, height);
 }
 
 void UI::set_size(ui_object_id id, ui_object_id ref_id) {
-	ui_object_t* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
 	lv_obj_t* lv_obj = find_lv_object_by_id(ref_id);
 	lv_coord_t width = lv_obj_get_width(lv_obj);
 	lv_coord_t height = lv_obj_get_height(lv_obj);
 	set_size(ui_obj, width, height);
 }
 
-void UI::set_size(ui_object_t* ui_obj, lv_coord_t width, lv_coord_t height) {
+void UI::set_size(UI_Object_C* ui_obj, lv_coord_t width, lv_coord_t height) {
 	if (ui_obj == nullptr) return;
 
 	switch (ui_obj->type) {
@@ -663,7 +709,7 @@ void UI::set_size(ui_object_t* ui_obj, lv_coord_t width, lv_coord_t height) {
 
 
 void UI::set_style(ui_object_id id, lv_style_t* lv_style, int style_type) {
-	ui_object_t* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
 
 	switch (ui_obj->type) {
 	case ui_object_type::CALENDAR:
@@ -688,8 +734,8 @@ void UI::set_align(ui_object_id id, lv_align_t align, ui_object_id base_id, int 
 }
 
 void UI::set_floating(ui_object_id id, ui_object_id parent_id) {
-	ui_object_t* ui_obj = find_object_by_id(id);
-	ui_object_t* ui_obj_par = find_object_by_id(parent_id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj_par = find_object_by_id(parent_id);
 	lv_obj_set_protect(ui_obj->lv_obj, LV_PROTECT_PARENT);
 	lv_obj_set_parent(ui_obj->lv_obj, ui_obj_par->lv_obj);
 }
@@ -703,7 +749,7 @@ void UI::spinbox_increment(ui_object_id id, bool increment) {
 }
 
 
-ui_object_t* UI::add_list(ui_object_id parent_id, ui_object_id id, ui_list_item_t* items, uint32_t num_items, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_list(ui_object_id parent_id, ui_object_id id, const char* name, ui_list_item_t* items, uint32_t num_items, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_list_create(lv_parent, NULL);
 
@@ -718,11 +764,17 @@ ui_object_t* UI::add_list(ui_object_id parent_id, ui_object_id id, ui_list_item_
 	for (uint32_t i = 0; i < num_items; i++) {
 		lv_list_btn = lv_list_add_btn(lv_obj, items[i].symbol, items[i].label);
 		lv_obj_set_event_cb(lv_list_btn, UI::event_handler);
-		add_object(lv_list_btn, items[i].id, id, ui_object_type::BUTTON, callback);
+
+		char* TotalLine{ new char[strlen(name) + strlen(items[i].label) + 1] };
+
+		TotalLine = strcpy(TotalLine, name);
+		TotalLine = strcat(TotalLine, items[i].label);
+
+		add_object(lv_list_btn, items[i].id, id, ui_object_type::BUTTON, callback, TotalLine);
 	}
-	return 	add_object(lv_obj, id, parent_id, ui_object_type::LIST);
+	return 	add_object(lv_obj, id, parent_id, ui_object_type::LIST, nullptr, name);
 }
-ui_object_t* UI::add_dropdown(ui_object_id parent_id, ui_object_id id, ui_dropdown_specs* specs, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_dropdown(ui_object_id parent_id, ui_object_id id, const char* name, ui_dropdown_specs* specs, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_ddlist_create(lv_parent, NULL);
 	specs->apply_specs(lv_obj);
@@ -732,13 +784,13 @@ ui_object_t* UI::add_dropdown(ui_object_id parent_id, ui_object_id id, ui_dropdo
 		lv_obj_align(lv_obj, lv_base, align, x_offset, y_offset);
 	}
 	lv_obj_set_event_cb(lv_obj, UI::event_handler);
-	ui_object_t* ui_obj = add_object(lv_obj, id, parent_id, ui_object_type::DROPDOWN_LIST, callback);
+	UI_Object_C* ui_obj = add_object(lv_obj, id, parent_id, ui_object_type::DROPDOWN_LIST, callback,name);
 	ui_obj->object_data = specs;
 
 	return 	ui_obj;
 }
 
-ui_object_t* UI::add_roller(ui_object_id parent_id, ui_object_id id, ui_roller_specs* specs, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
+UI_Object_C* UI::add_roller(ui_object_id parent_id, ui_object_id id, const char* name, ui_roller_specs* specs, ui_object_handler_cb_ptr callback, lv_align_t align, ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_roller_create(lv_parent, NULL);
 	specs->apply_specs(lv_obj);
@@ -749,12 +801,12 @@ ui_object_t* UI::add_roller(ui_object_id parent_id, ui_object_id id, ui_roller_s
 	}
 
 	lv_obj_set_event_cb(lv_obj, UI::event_handler);
-	ui_object_t* ui_obj = add_object(lv_obj, id, parent_id, ui_object_type::ROLLER, callback);
+	UI_Object_C* ui_obj = add_object(lv_obj, id, parent_id, ui_object_type::ROLLER, callback,name);
 	ui_obj->object_data = specs;
 	return 	ui_obj;
 }
 
-ui_object_t* UI::add_slider(ui_object_id parent_id, ui_object_id id, int value, ui_object_handler_cb_ptr callback, lv_align_t align,
+UI_Object_C* UI::add_slider(ui_object_id parent_id, ui_object_id id, const char* name, int value, ui_object_handler_cb_ptr callback, lv_align_t align,
 	ui_object_id base_id, uint32_t x_offset, uint32_t y_offset) {
 	lv_obj_t* lv_parent = find_parent_object(parent_id);
 	lv_obj_t* lv_obj = lv_slider_create(lv_parent, NULL);
@@ -764,10 +816,10 @@ ui_object_t* UI::add_slider(ui_object_id parent_id, ui_object_id id, int value, 
 	}
 	lv_slider_set_value(lv_obj, value, false);
 	lv_obj_set_event_cb(lv_obj, UI::event_handler);
-	return 	add_object(lv_obj, id, parent_id, ui_object_type::SLIDER, callback);
+	return 	add_object(lv_obj, id, parent_id, ui_object_type::SLIDER, callback, name);
 }
 
-ui_object_t* UI::find_object_by_id(ui_object_id id) {
+UI_Object_C* UI::find_object_by_id(ui_object_id id) {
 	for (auto ui_obj : UI::ui_object_list_) {
 		if ((uint32_t)ui_obj->id == id)
 			return ui_obj;
@@ -776,13 +828,13 @@ ui_object_t* UI::find_object_by_id(ui_object_id id) {
 }
 
 lv_obj_t* UI::find_lv_object_by_id(ui_object_id id) {
-	ui_object_t* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
 	if (ui_obj == nullptr)
 		return nullptr;
 	return ui_obj->lv_obj;
 }
 
-ui_object_t* UI::find_object_by_ref(lv_obj_t* ref) {
+UI_Object_C* UI::find_object_by_ref(lv_obj_t* ref) {
 	for (auto ui_obj : UI::ui_object_list_) {
 		if (ui_obj->lv_obj == ref)
 			return ui_obj;
@@ -800,7 +852,7 @@ lv_obj_t* UI::find_parent_object(ui_object_id id) {
 }
 
 bool UI::add_update_object(ui_object_id id, uint32_t ms_time) {
-	ui_object_t* ui_obj = find_object_by_id(id);
+	UI_Object_C* ui_obj = find_object_by_id(id);
 	if (ui_obj != nullptr) {
 		ui_update_object_c* ui_update_obj = new ui_update_object_c(ui_obj, ms_time);
 		ui_update_object_list_.push_back(ui_update_obj);
@@ -814,7 +866,7 @@ void UI::do_update_objects(lv_task_t* task) {
 	for (auto ui_update_obj : ui_update_object_list_) {
 		//check if object can fire
 		if (ui_update_obj->go(task->last_run)) {
-			ui_object_t* ui_obj = ui_update_obj->ui_obj;
+			UI_Object_C* ui_obj = ui_update_obj->ui_obj;
 			switch (ui_obj->type) {
 			case ui_object_type::LABEL:
 				time_t now;
